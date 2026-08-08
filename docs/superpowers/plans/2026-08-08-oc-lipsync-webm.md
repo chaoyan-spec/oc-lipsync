@@ -265,15 +265,15 @@ Commit message: `feat: add OC voice preview workflow`.
 ### Task 4: Transparent WebM export service
 
 **Files:**
-- Create: `server/export-video.test.ts`
-- Create: `server/export-video.ts`
+- Create: `server/export-video.test.js`
+- Create: `server/export-video.js`
 - Create: `test/fixtures/tone-silence.wav`
 - Modify: `package.json`
 
 **Interfaces:**
 - Consumes: `mouthCues: MouthCue[]`, `characterScale: number`, and an uploaded audio path.
-- Produces: `exportTransparentWebm(input: ExportInput): Promise<ExportResult>`.
-- `ExportResult = { path: string; width: 1080; height: 1920; fps: 30; hasAudio: true; pixelFormat: string }`.
+- Produces: `exportTransparentWebm(input): Promise<ExportResult>`.
+- `ExportResult = { path, width: 1080, height: 1920, fps: 30, hasAudio: true, pixelFormat }`.
 
 - [ ] **Step 1: Generate a deterministic two-second audio fixture**
 
@@ -294,7 +294,7 @@ The test must clean only its own `mkdtemp` output directory in `afterEach`.
 
 - [ ] **Step 3: Run the integration test and verify RED**
 
-Run: `npm test -- server/export-video.test.ts`
+Run: `npm test -- server/export-video.test.js`
 
 Expected: FAIL because `exportTransparentWebm` is missing.
 
@@ -303,15 +303,15 @@ Expected: FAIL because `exportTransparentWebm` is missing.
 Implementation requirements:
 
 - create a unique temporary directory with `mkdtemp`;
-- render one RGBA PNG per output frame using `sharp`, selecting the open/closed source from cues and compositing it bottom-center on a transparent 1080×1920 canvas;
-- encode frames with `ffmpeg -framerate 30`, map the original audio, use `libvpx-vp9`, `-pix_fmt yuva420p`, `-auto-alt-ref 0`, and Opus audio;
-- run ffprobe after encoding and reject width, height, fps, codec, audio, or alpha verification failures;
-- remove frame PNGs after a successful export while keeping the returned WebM until the server response finishes;
+- create an FFmpeg concat-demuxer manifest from the mouth cues, alternating the two bundled PNG paths and exact cue durations; repeat the final image entry as required by the concat demuxer;
+- in one FFmpeg invocation, convert the manifest to 30 fps, scale the square RGBA OC to `characterScale × 1000` pixels, horizontally center and bottom-align it on a transparent 1080×1920 canvas, map the original audio, and encode with `libvpx-vp9`, `-pix_fmt yuva420p`, `-auto-alt-ref 0`, and Opus audio;
+- run ffprobe after encoding and reject width, height, fps, codec, or audio verification failures; decode one corner pixel as RGBA and reject alpha values other than `0`;
+- remove the concat manifest after a successful export while keeping the returned WebM until the server response finishes;
 - surface a concise `ExportError` without exposing the command line to the UI.
 
 - [ ] **Step 5: Run tests and commit**
 
-Run: `npm test -- server/export-video.test.ts`
+Run: `npm test -- server/export-video.test.js`
 
 Expected: integration test PASS and verified WebM exists.
 
