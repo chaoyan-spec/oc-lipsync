@@ -180,47 +180,55 @@ Commit message: `feat: analyze voice energy and bundle OC states`.
 ### Task 3: One-page preview workflow
 
 **Files:**
-- Create: `src/App.test.tsx`
-- Create: `src/App.tsx`
-- Create: `src/main.tsx`
-- Create: `src/styles.css`
+- Rename: `src/lipsync.ts` to `public/lib/lipsync.js`
+- Rename: `src/audio.ts` to `public/lib/audio.js`
+- Rename: `src/lipsync.test.ts` to `test/lipsync.test.js`
+- Rename: `src/audio.test.ts` to `test/audio.test.js`
+- Create: `src/ui-state.test.js`
+- Create: `src/ui-state.js`
+- Create: `public/index.html`
+- Create: `public/app.js`
+- Create: `public/styles.css`
+- Create: `server/static-server.js`
 - Modify: `package.json`
-- Modify: `vite.config.ts`
 
 **Interfaces:**
-- Consumes: `decodeAudio(file)` from `src/audio.ts`.
-- Consumes: `buildMouthTimeline(...)` and `mouthAtTime(...)` from `src/lipsync.ts`.
+- Consumes: `decodeAudio(file)` from `public/lib/audio.js`.
+- Consumes: `buildMouthTimeline(...)` and `mouthAtTime(...)` from `public/lib/lipsync.js`.
+- Produces: `isSupportedAudio(fileName: string): boolean` and `createInitialUiState()` from `src/ui-state.js`.
 - Produces: browser form state `{ file, sensitivity, minOpenSeconds, characterScale, cues }` later submitted to `/api/export`.
 
-- [ ] **Step 1: Configure jsdom and write failing user-flow tests**
+- [ ] **Step 1: Write failing tests for the browser state contract**
 
-Mock only `decodeAudio`, not mouth-timeline logic. Cover:
+Use `node:test` and `node:assert/strict` to cover:
 
-```tsx
-it('disables playback and export before audio is selected', () => {
-  render(<App />);
-  expect(screen.getByRole('button', { name: '播放预览' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: '导出透明 WebM' })).toBeDisabled();
+```js
+test('starts with playback and export disabled', () => {
+  assert.deepEqual(createInitialUiState(), {
+    file: null, sensitivity: 35, minOpenMs: 120, characterScale: 72,
+    canPlay: false, canExport: false, error: '',
+  });
 });
 
-it('shows the selected audio and enables preview after decoding', async () => {
-  render(<App />);
-  const file = new File(['voice'], '讲解.m4a', { type: 'audio/mp4' });
-  await userEvent.upload(screen.getByLabelText('选择口播音频'), file);
-  expect(await screen.findByText('讲解.m4a')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '播放预览' })).toBeEnabled();
+test('accepts only the three agreed audio extensions case-insensitively', () => {
+  assert.equal(isSupportedAudio('讲解.M4A'), true);
+  assert.equal(isSupportedAudio('讲解.mp3'), true);
+  assert.equal(isSupportedAudio('讲解.wav'), true);
+  assert.equal(isSupportedAudio('讲解.aac'), false);
 });
 ```
 
-Also test that unsupported file extensions display `暂不支持该音频，请换用 MP3、WAV 或 M4A` and keep export disabled.
+- [ ] **Step 2: Run the state test and verify RED**
 
-- [ ] **Step 2: Run the component test and verify RED**
+Run: `npm test -- src/ui-state.test.js`
 
-Run: `npm test -- src/App.test.tsx`
+Expected: FAIL because `src/ui-state.js` does not exist.
 
-Expected: FAIL because `App` and the controls do not exist.
+- [ ] **Step 3: Convert the shared audio/lipsync modules to browser-compatible JavaScript**
 
-- [ ] **Step 3: Implement the complete preview page**
+Move the reviewed logic to `public/lib/*.js`, replace TypeScript-only syntax with JSDoc, and update the existing tests to import those files. Preserve all six passing behaviors exactly; do not duplicate the energy or timeline algorithms in `public/app.js`.
+
+- [ ] **Step 4: Implement the complete preview page and local static server**
 
 Build one responsive page with:
 
@@ -233,9 +241,11 @@ Build one responsive page with:
 - disabled export button reserved for Task 5;
 - decode and silent-audio error messages from the design.
 
+The browser script must use the shared modules directly. `server/static-server.js` must serve only files under `public/`, reject path traversal, bind `127.0.0.1`, and print the exact local URL. `npm run dev` and `npm start` both launch this server for now; `npm run build` checks all JavaScript syntax with Node.
+
 Use warm off-white controls and dark plum/pink accents derived from the OC. Avoid dashboard navigation, gradients, decorative cards, and generic landing-page sections.
 
-- [ ] **Step 4: Run tests and production build**
+- [ ] **Step 5: Run tests and syntax build**
 
 Run:
 
@@ -244,9 +254,9 @@ npm test
 npm run build
 ```
 
-Expected: all tests PASS; Vite build exits 0.
+Expected: all tests PASS; syntax build exits 0; no dependencies are installed.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 Commit message: `feat: add OC voice preview workflow`.
 
