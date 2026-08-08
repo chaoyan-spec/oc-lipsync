@@ -4,9 +4,9 @@
 
 **Goal:** Build a local single-page Mac tool that turns a voice recording into a 1080×1920, 30 fps transparent WebM with the bundled OC switching between open- and closed-mouth PNG states.
 
-**Architecture:** A small React/Vite client decodes audio for preview and produces a deterministic mouth timeline. A local Node server receives the audio, timeline, and display settings, then invokes the already-installed FFmpeg/libvpx-vp9 encoder and verifies the WebM with ffprobe before returning it. All media remains on the Mac.
+**Architecture:** A small dependency-free browser client decodes audio for preview and produces a deterministic mouth timeline. A local Node server receives one compact binary envelope containing metadata plus the audio, then invokes the already-installed FFmpeg/libvpx-vp9 encoder and verifies the WebM with ffprobe before returning it. All media remains on the Mac.
 
-**Tech Stack:** React, TypeScript, Vite, Vitest, Testing Library, Express, Multer, Supertest, Sharp, FFmpeg 8/libvpx-vp9, ffprobe.
+**Tech Stack:** Browser Web APIs, TypeScript executed by Node 24 type stripping, Node `http` and `node:test`, FFmpeg 8/libvpx-vp9, ffprobe. No third-party npm dependencies.
 
 ## Global Constraints
 
@@ -21,20 +21,18 @@
 
 ## File Map
 
-- `package.json` — scripts and dependencies for the client, server, tests, and build.
-- `vite.config.ts`, `tsconfig.json`, `index.html` — minimal Vite project setup.
+- `package.json`, `tsconfig.json` — dependency-free scripts and type checking conventions.
 - `src/lipsync.ts` — pure energy-to-mouth-state functions.
 - `src/lipsync.test.ts` — threshold, silence, minimum-duration, and boundary tests.
 - `src/audio.ts` — browser audio decoding and RMS extraction.
 - `src/audio.test.ts` — deterministic RMS extraction tests using numeric sample arrays.
-- `src/App.tsx` — one-page import, preview, controls, and export flow.
-- `src/App.test.tsx` — user-visible disabled, loaded, and export states.
-- `src/main.tsx`, `src/styles.css` — app entry and product-specific responsive styling.
+- `public/index.html`, `public/app.js`, `public/styles.css` — one-page import, preview, controls, export flow, and product-specific styling.
+- `src/request-envelope.ts`, `src/request-envelope.test.ts` — encode/decode the metadata-plus-audio request format.
 - `public/oc-mouth-open.png`, `public/oc-mouth-closed.png` — bundled RGBA OC assets.
 - `server/export-video.ts` — FFmpeg input preparation, command execution, and ffprobe verification.
 - `server/export-video.test.ts` — command and real transparent WebM integration tests.
 - `server/index.ts` — local `/api/export` endpoint and static production serving.
-- `server/index.test.ts` — upload validation and successful-download API tests.
+- `server/index.test.ts` — request validation and successful-download API tests using Node fetch.
 - `test/fixtures/tone-silence.wav` — short generated audio fixture containing tone, silence, and tone.
 - `README.md` — exact start and use instructions for the user.
 
@@ -44,9 +42,7 @@
 
 **Files:**
 - Create: `package.json`
-- Create: `vite.config.ts`
 - Create: `tsconfig.json`
-- Create: `index.html`
 - Create: `src/lipsync.test.ts`
 - Create: `src/lipsync.ts`
 
@@ -55,25 +51,26 @@
 - Produces: `mouthAtTime(cues: MouthCue[], seconds: number): MouthState`
 - Types: `MouthState = 'open' | 'closed'`, `MouthCue = { start: number; end: number; state: MouthState }`, `TimelineOptions = { frameSeconds: number; threshold: number; minOpenSeconds: number }`
 
-- [ ] **Step 1: Create the minimal Vite/Vitest setup and the failing timeline tests**
+- [ ] **Step 1: Create the minimal dependency-free Node test setup and the failing timeline tests**
 
-Use scripts `dev`, `build`, `start`, and `test`. Configure Vitest for TypeScript. Add tests with these exact behaviors:
+Use scripts `dev`, `start`, and `test`, with `test` running Node 24's built-in test runner over TypeScript. Add tests with these exact behaviors, expressed with `node:test` and `node:assert/strict`:
 
 ```ts
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import { buildMouthTimeline, mouthAtTime } from './lipsync';
 
 describe('buildMouthTimeline', () => {
   it('keeps silence closed', () => {
-    expect(buildMouthTimeline([0, 0, 0], {
+    assert.deepEqual(buildMouthTimeline([0, 0, 0], {
       frameSeconds: 0.1, threshold: 0.2, minOpenSeconds: 0.1,
-    })).toEqual([{ start: 0, end: 0.3, state: 'closed' }]);
+    }), [{ start: 0, end: 0.3, state: 'closed' }]);
   });
 
   it('opens above the threshold and merges adjacent frames', () => {
-    expect(buildMouthTimeline([0, 0.4, 0.5, 0], {
+    assert.deepEqual(buildMouthTimeline([0, 0.4, 0.5, 0], {
       frameSeconds: 0.1, threshold: 0.2, minOpenSeconds: 0.1,
-    })).toEqual([
+    }), [
       { start: 0, end: 0.1, state: 'closed' },
       { start: 0.1, end: 0.3, state: 'open' },
       { start: 0.3, end: 0.4, state: 'closed' },
@@ -81,9 +78,9 @@ describe('buildMouthTimeline', () => {
   });
 
   it('extends short open bursts to the configured minimum without exceeding duration', () => {
-    expect(buildMouthTimeline([0, 0.5, 0, 0], {
+    assert.deepEqual(buildMouthTimeline([0, 0.5, 0, 0], {
       frameSeconds: 0.1, threshold: 0.2, minOpenSeconds: 0.2,
-    })).toEqual([
+    }), [
       { start: 0, end: 0.1, state: 'closed' },
       { start: 0.1, end: 0.3, state: 'open' },
       { start: 0.3, end: 0.4, state: 'closed' },
@@ -93,7 +90,7 @@ describe('buildMouthTimeline', () => {
 
 it('uses a closed final boundary', () => {
   const cues = [{ start: 0, end: 0.2, state: 'open' as const }];
-  expect(mouthAtTime(cues, 0.2)).toBe('closed');
+  assert.equal(mouthAtTime(cues, 0.2), 'closed');
 });
 ```
 
@@ -118,7 +115,7 @@ Expected: all four tests PASS.
 Run:
 
 ```bash
-git add package.json vite.config.ts tsconfig.json index.html src/lipsync.ts src/lipsync.test.ts
+git add package.json tsconfig.json src/lipsync.ts src/lipsync.test.ts
 git commit -m "feat: add deterministic mouth timeline"
 ```
 
@@ -146,16 +143,17 @@ Copy the open-mouth image to `public/oc-mouth-open.png` and the closed-mouth ima
 - [ ] **Step 2: Write the failing RMS tests**
 
 ```ts
-import { expect, it } from 'vitest';
+import { it } from 'node:test';
+import assert from 'node:assert/strict';
 import { calculateWindowRms } from './audio';
 
 it('calculates one RMS value per complete or partial window', () => {
   const values = calculateWindowRms(new Float32Array([1, -1, 0, 0]), 4, 0.5);
-  expect(values).toEqual([1, 0]);
+  assert.deepEqual(values, [1, 0]);
 });
 
 it('returns zeros for silent samples', () => {
-  expect(calculateWindowRms(new Float32Array(6), 6, 0.5)).toEqual([0, 0]);
+  assert.deepEqual(calculateWindowRms(new Float32Array(6), 6, 0.5), [0, 0]);
 });
 ```
 
