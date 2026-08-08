@@ -4,5 +4,5 @@ dist/
 .superpowers/
 work/
 outputs/*.webm
+outputs/*.zip
 *.log
-
