@@ -1,20 +1,23 @@
-export type MouthState = 'open' | 'closed';
+/** @typedef {'open' | 'closed'} MouthState */
 
-export type MouthCue = {
-  start: number;
-  end: number;
-  state: MouthState;
-};
+/**
+ * @typedef {object} MouthCue
+ * @property {number} start
+ * @property {number} end
+ * @property {MouthState} state
+ */
 
-export type TimelineOptions = {
-  frameSeconds: number;
-  threshold: number;
-  minOpenSeconds: number;
-};
+/**
+ * @typedef {object} TimelineOptions
+ * @property {number} frameSeconds
+ * @property {number} threshold
+ * @property {number} minOpenSeconds
+ */
 
-const roundTime = (seconds: number): number => Number(seconds.toFixed(6));
+const roundTime = (seconds) => Number(seconds.toFixed(6));
 
-function validateOptions({ frameSeconds, threshold, minOpenSeconds }: TimelineOptions): void {
+/** @param {TimelineOptions} options */
+function validateOptions({ frameSeconds, threshold, minOpenSeconds }) {
   if (!Number.isFinite(frameSeconds) || frameSeconds <= 0) {
     throw new Error('frameSeconds must be a positive finite number');
   }
@@ -28,14 +31,16 @@ function validateOptions({ frameSeconds, threshold, minOpenSeconds }: TimelineOp
   }
 }
 
-export function buildMouthTimeline(
-  energies: number[],
-  options: TimelineOptions,
-): MouthCue[] {
+/**
+ * @param {number[]} energies
+ * @param {TimelineOptions} options
+ * @returns {MouthCue[]}
+ */
+export function buildMouthTimeline(energies, options) {
   validateOptions(options);
 
   const { frameSeconds, minOpenSeconds, threshold } = options;
-  const states: MouthState[] = energies.map((energy) => (
+  const states = energies.map((energy) => (
     energy > threshold ? 'open' : 'closed'
   ));
 
@@ -56,7 +61,7 @@ export function buildMouthTimeline(
 
   if (states.length === 0) return [];
 
-  const cues: MouthCue[] = [];
+  const cues = [];
   let start = 0;
   for (let index = 1; index <= states.length; index += 1) {
     if (index < states.length && states[index] === states[start]) continue;
@@ -72,6 +77,11 @@ export function buildMouthTimeline(
   return cues;
 }
 
-export function mouthAtTime(cues: MouthCue[], seconds: number): MouthState {
+/**
+ * @param {MouthCue[]} cues
+ * @param {number} seconds
+ * @returns {MouthState}
+ */
+export function mouthAtTime(cues, seconds) {
   return cues.find(({ start, end }) => seconds >= start && seconds < end)?.state ?? 'closed';
 }

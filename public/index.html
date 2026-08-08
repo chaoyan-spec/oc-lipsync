@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#3f2038">
+    <title>OC 口播机</title>
+    <link rel="preload" href="/oc-mouth-open.png" as="image">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="workspace">
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">LOCAL LIP SYNC</p>
+        <h1 id="page-title">OC 口播机</h1>
+        <p class="lede">导入口播音频，让你的 OC 随声音自然开合嘴型。素材只在本机处理，不会上传网络。</p>
+      </section>
+
+      <section class="preview-column" aria-label="嘴型预览">
+        <div class="stage" aria-label="9 比 16 透明画布预览">
+          <img
+            id="character"
+            class="character"
+            src="/oc-mouth-closed.png"
+            alt="闭嘴状态的 OC"
+          >
+          <span class="stage-label">1080 × 1920 · 透明画布</span>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="音频与嘴型设置">
+        <div
+          id="drop-zone"
+          class="drop-zone"
+          tabindex="0"
+          role="group"
+          aria-labelledby="audio-label"
+        >
+          <div>
+            <strong id="audio-label">放入口播音频</strong>
+            <p>拖到这里，或从电脑中选择 MP3、WAV、M4A</p>
+          </div>
+          <label class="file-button" for="audio-file">选择音频</label>
+          <input
+            id="audio-file"
+            class="file-input"
+            type="file"
+            accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4"
+          >
+        </div>
+
+        <div class="audio-info" aria-live="polite">
+          <div>
+            <span class="meta-label">当前音频</span>
+            <strong id="file-name">尚未选择</strong>
+          </div>
+          <span id="duration">00:00</span>
+        </div>
+
+        <audio id="preview-audio" preload="metadata"></audio>
+        <div class="transport">
+          <button id="play-button" class="play-button" type="button" disabled>播放</button>
+          <label class="progress-label" for="progress">
+            <span class="sr-only">播放进度</span>
+            <input id="progress" type="range" min="0" max="1000" value="0" disabled>
+          </label>
+          <output id="current-time" for="progress">00:00</output>
+        </div>
+
+        <p id="error-message" class="error-message" role="alert" hidden></p>
+
+        <fieldset class="settings">
+          <legend>嘴型设置</legend>
+
+          <label class="setting" for="sensitivity">
+            <span>
+              <strong>嘴型灵敏度</strong>
+              <small>数值越高，轻声说话也会张嘴</small>
+            </span>
+            <output id="sensitivity-value" for="sensitivity">35</output>
+            <input id="sensitivity" type="range" min="1" max="100" value="35">
+          </label>
+
+          <label class="setting" for="min-open">
+            <span>
+              <strong>最短开嘴时间</strong>
+              <small>减少连续说话时的嘴型抖动</small>
+            </span>
+            <output id="min-open-value" for="min-open">120 ms</output>
+            <input id="min-open" type="range" min="30" max="500" step="10" value="120">
+          </label>
+
+          <label class="setting" for="character-scale">
+            <span>
+              <strong>OC 大小</strong>
+              <small>调整角色在竖屏画布中的占比</small>
+            </span>
+            <output id="character-scale-value" for="character-scale">72%</output>
+            <input id="character-scale" type="range" min="30" max="100" value="72">
+          </label>
+        </fieldset>
+
+        <button class="export-button" type="button" disabled>导出透明 WebM（下一步开放）</button>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

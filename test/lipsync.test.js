@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { buildMouthTimeline, mouthAtTime } from './lipsync.ts';
+import { buildMouthTimeline, mouthAtTime } from '../public/lib/lipsync.js';
 
 describe('buildMouthTimeline', () => {
   it('keeps silence closed', () => {
@@ -31,6 +31,6 @@ describe('buildMouthTimeline', () => {
 });
 
 it('uses a closed final boundary', () => {
-  const cues = [{ start: 0, end: 0.2, state: 'open' as const }];
+  const cues = [{ start: 0, end: 0.2, state: 'open' }];
   assert.equal(mouthAtTime(cues, 0.2), 'closed');
 });

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { it } from 'node:test';
-import { calculateWindowRms } from './audio.ts';
+import { calculateWindowRms } from '../public/lib/audio.js';
 
 it('calculates one RMS value per complete or partial window', () => {
   const values = calculateWindowRms(new Float32Array([1, -1, 0, 0]), 4, 0.5);

@@ -1,10 +1,12 @@
-export function calculateWindowRms(
-  samples: Float32Array,
-  sampleRate: number,
-  windowSeconds: number,
-): number[] {
+/**
+ * @param {Float32Array} samples
+ * @param {number} sampleRate
+ * @param {number} windowSeconds
+ * @returns {number[]}
+ */
+export function calculateWindowRms(samples, sampleRate, windowSeconds) {
   const windowSamples = Math.max(1, Math.round(sampleRate * windowSeconds));
-  const energies: number[] = [];
+  const energies = [];
 
   for (let start = 0; start < samples.length; start += windowSamples) {
     const end = Math.min(start + windowSamples, samples.length);
@@ -20,10 +22,11 @@ export function calculateWindowRms(
   return energies;
 }
 
-export async function decodeAudio(file: File): Promise<{
-  buffer: AudioBuffer;
-  energies: number[];
-}> {
+/**
+ * @param {File} file
+ * @returns {Promise<{ buffer: AudioBuffer, energies: number[] }>}
+ */
+export async function decodeAudio(file) {
   const context = new AudioContext();
 
   try {

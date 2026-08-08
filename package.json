@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --experimental-strip-types --watch src/lipsync.ts",
-    "build": "node --experimental-strip-types --check src/lipsync.ts",
-    "start": "node --experimental-strip-types src/lipsync.ts",
-    "test": "node --experimental-strip-types --test"
+    "dev": "node server/static-server.js",
+    "build": "node --check public/app.js && node --check public/lib/audio.js && node --check public/lib/lipsync.js && node --check server/static-server.js && node --check src/ui-state.js && node --check src/ui-state.test.js && node --check test/audio.test.js && node --check test/lipsync.test.js",
+    "start": "node server/static-server.js",
+    "test": "node --test"
   }
 }
