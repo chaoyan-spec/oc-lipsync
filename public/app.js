@@ -1,5 +1,6 @@
 import { decodeAudio } from './lib/audio.js';
 import { buildMouthTimeline, mouthAtTime } from './lib/lipsync.js';
+import { createInitialUiState, isSupportedAudio } from './lib/ui-state.js';
 
 const CLOSED_MOUTH = '/oc-mouth-closed.png';
 const OPEN_MOUTH = '/oc-mouth-open.png';
@@ -16,6 +17,7 @@ const elements = {
   dropZone: document.querySelector('#drop-zone'),
   duration: document.querySelector('#duration'),
   error: document.querySelector('#error-message'),
+  exportButton: document.querySelector('.export-button'),
   fileInput: document.querySelector('#audio-file'),
   fileName: document.querySelector('#file-name'),
   minOpen: document.querySelector('#min-open'),
@@ -26,11 +28,10 @@ const elements = {
   sensitivityValue: document.querySelector('#sensitivity-value'),
 };
 
+const initialUiState = createInitialUiState();
 const state = {
-  file: null,
-  sensitivity: 35,
-  minOpenSeconds: 0.12,
-  characterScale: 72,
+  ...initialUiState,
+  minOpenSeconds: initialUiState.minOpenMs / 1000,
   cues: [],
   energies: [],
   audioUrl: '',
@@ -45,6 +46,7 @@ function formatTime(seconds) {
 }
 
 function showError(message = '') {
+  state.error = message;
   elements.error.textContent = message;
   elements.error.hidden = !message;
 }
@@ -79,7 +81,10 @@ function resetTransport() {
   elements.audio.pause();
   elements.audio.removeAttribute('src');
   elements.audio.load();
-  elements.playButton.disabled = true;
+  state.canPlay = false;
+  state.canExport = false;
+  elements.playButton.disabled = !state.canPlay;
+  elements.exportButton.disabled = !state.canExport;
   elements.playButton.textContent = '播放';
   elements.progress.disabled = true;
   elements.progress.value = '0';
@@ -110,7 +115,8 @@ async function loadAudio(file) {
     state.audioUrl = URL.createObjectURL(file);
     elements.audio.src = state.audioUrl;
     elements.duration.textContent = formatTime(buffer.duration);
-    elements.playButton.disabled = false;
+    state.canPlay = true;
+    elements.playButton.disabled = !state.canPlay;
     elements.progress.disabled = false;
 
     const peak = energies.reduce((highest, energy) => Math.max(highest, energy), 0);
@@ -126,6 +132,21 @@ async function loadAudio(file) {
 
 function useSelectedFile(file) {
   if (!file) return;
+
+  if (!isSupportedAudio(file.name)) {
+    state.loadId += 1;
+    state.file = null;
+    state.energies = [];
+    state.cues = [];
+    if (state.audioUrl) URL.revokeObjectURL(state.audioUrl);
+    state.audioUrl = '';
+    resetTransport();
+    elements.fileName.textContent = file.name;
+    elements.fileName.title = file.name;
+    showError(DECODE_ERROR);
+    return;
+  }
+
   loadAudio(file);
 }
 
@@ -194,6 +215,7 @@ elements.sensitivity.addEventListener('input', () => {
 
 elements.minOpen.addEventListener('input', () => {
   const milliseconds = Number(elements.minOpen.value);
+  state.minOpenMs = milliseconds;
   state.minOpenSeconds = milliseconds / 1000;
   elements.minOpenValue.value = `${milliseconds} ms`;
   rebuildTimeline();
@@ -208,3 +230,11 @@ elements.characterScale.addEventListener('input', () => {
 window.addEventListener('beforeunload', () => {
   if (state.audioUrl) URL.revokeObjectURL(state.audioUrl);
 });
+
+elements.sensitivity.value = String(state.sensitivity);
+elements.sensitivityValue.value = String(state.sensitivity);
+elements.minOpen.value = String(state.minOpenMs);
+elements.minOpenValue.value = `${state.minOpenMs} ms`;
+elements.characterScale.value = String(state.characterScale);
+elements.characterScaleValue.value = `${state.characterScale}%`;
+elements.character.style.width = `${state.characterScale}%`;
