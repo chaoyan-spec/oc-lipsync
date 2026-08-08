@@ -138,6 +138,11 @@ h1 {
   background: #fff3f7;
 }
 
+.drop-zone.is-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .drop-zone strong {
   display: block;
   margin-bottom: 6px;

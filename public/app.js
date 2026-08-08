@@ -1,5 +1,9 @@
 import { decodeAudio } from './lib/audio.js';
-import { createExportController } from './lib/export-client.js';
+import {
+  createExportController,
+  createFileSelectionHandler,
+  updateDropZoneBusy,
+} from './lib/export-client.js';
 import { buildMouthTimeline, mouthAtTime } from './lib/lipsync.js';
 import { createInitialUiState, isSupportedAudio } from './lib/ui-state.js';
 
@@ -37,6 +41,7 @@ const state = {
   energies: [],
   audioUrl: '',
   loadId: 0,
+  isExporting: false,
 };
 
 function formatTime(seconds) {
@@ -157,13 +162,19 @@ function useSelectedFile(file) {
   loadAudio(file);
 }
 
+const handleAudioSelection = createFileSelectionHandler({
+  isExporting: () => state.isExporting,
+  selectFile: useSelectedFile,
+});
+
 elements.fileInput.addEventListener('change', () => {
-  useSelectedFile(elements.fileInput.files?.[0]);
+  if (!handleAudioSelection(elements.fileInput.files?.[0])) elements.fileInput.value = '';
 });
 
 for (const eventName of ['dragenter', 'dragover']) {
   elements.dropZone.addEventListener(eventName, (event) => {
     event.preventDefault();
+    if (state.isExporting) return;
     elements.dropZone.classList.add('is-dragging');
   });
 }
@@ -176,11 +187,12 @@ for (const eventName of ['dragleave', 'drop']) {
 }
 
 elements.dropZone.addEventListener('drop', (event) => {
-  useSelectedFile(event.dataTransfer?.files[0]);
+  handleAudioSelection(event.dataTransfer?.files[0]);
 });
 
 elements.dropZone.addEventListener('keydown', (event) => {
   if (event.target !== elements.dropZone) return;
+  if (state.isExporting) return;
   if (event.key === 'Enter' || event.key === ' ') elements.fileInput.click();
 });
 
@@ -250,6 +262,11 @@ const exportController = createExportController({
     characterScale: state.characterScale,
   }),
   showError,
+  setExporting: (isExporting) => {
+    state.isExporting = isExporting;
+    updateDropZoneBusy(elements.dropZone, isExporting);
+  },
+  canExport: () => state.canExport,
 });
 
 elements.exportButton.addEventListener('click', () => {

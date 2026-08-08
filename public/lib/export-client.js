@@ -1,4 +1,4 @@
-import { encodeExportRequest } from './request-envelope.js';
+import { createExportRequestBody } from './request-envelope.js';
 
 const EXPORT_LABEL = '导出透明 WebM';
 const EXPORTING_LABEL = '正在导出…';
@@ -6,8 +6,10 @@ const EXPORT_ERROR = '导出失败，请重试';
 
 function normalizeScale(value) {
   const numericValue = Number(value);
-  const normalized = numericValue > 1 ? numericValue / 100 : numericValue;
-  return Math.min(1, Math.max(0.4, normalized));
+  if (!Number.isFinite(numericValue) || numericValue < 40 || numericValue > 100) {
+    throw new RangeError('Character scale must be between 40 and 100 percent.');
+  }
+  return numericValue / 100;
 }
 
 function downloadBase(fileName) {
@@ -25,6 +27,20 @@ function browserDownload(url, filename) {
   anchor.remove();
 }
 
+export function createFileSelectionHandler({ isExporting, selectFile }) {
+  return (file) => {
+    if (!file || isExporting()) return false;
+    selectFile(file);
+    return true;
+  };
+}
+
+export function updateDropZoneBusy(dropZone, isBusy) {
+  dropZone.inert = isBusy;
+  dropZone.setAttribute('aria-disabled', String(isBusy));
+  dropZone.classList.toggle('is-disabled', isBusy);
+}
+
 export function createExportController({
   button,
   controls = [],
@@ -34,27 +50,28 @@ export function createExportController({
   revokeObjectURL = (url) => URL.revokeObjectURL(url),
   download = browserDownload,
   showError = () => {},
+  setExporting = () => {},
+  canExport = () => true,
 }) {
   let exporting = false;
 
   async function exportVideo() {
     if (exporting) return;
     exporting = true;
-    const buttonWasDisabled = button.disabled;
     const disabledStates = controls.map((control) => control.disabled);
     button.textContent = EXPORTING_LABEL;
     button.disabled = true;
     controls.forEach((control) => { control.disabled = true; });
+    setExporting(true);
     showError('');
 
     try {
       const { file, cues, characterScale } = getExportInput();
-      const audioBytes = new Uint8Array(await file.arrayBuffer());
-      const body = encodeExportRequest({
+      const body = createExportRequestBody({
         filename: file.name,
         cues,
         scale: normalizeScale(characterScale),
-      }, audioBytes);
+      }, file);
       const response = await fetchImpl('/api/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/octet-stream' },
@@ -75,8 +92,9 @@ export function createExportController({
       controls.forEach((control, index) => {
         control.disabled = disabledStates[index];
       });
+      setExporting(false);
       button.textContent = EXPORT_LABEL;
-      button.disabled = buttonWasDisabled;
+      button.disabled = !canExport();
       exporting = false;
     }
   }

@@ -19,11 +19,15 @@ function makeButton() {
 }
 
 function makeInput() {
-  return {
-    file: {
-      name: '访谈.WAV',
-      arrayBuffer: async () => Uint8Array.from([0, 255, 7]).buffer,
+  const file = new Blob([Uint8Array.from([0, 255, 7])], { type: 'audio/wav' });
+  Object.defineProperties(file, {
+    name: { value: '访谈.WAV' },
+    arrayBuffer: {
+      value: async () => { throw new Error('export must not copy the whole File'); },
     },
+  });
+  return {
+    file,
     cues: [
       { start: 0, end: 0.5, state: 'closed' },
       { start: 0.5, end: 1, state: 'open' },
@@ -32,7 +36,7 @@ function makeInput() {
   };
 }
 
-test('disables controls immediately and restores their prior state after downloading', async () => {
+test('disables controls and derives the final button state from current loaded state', async () => {
   const request = deferred();
   const button = makeButton();
   const controls = [{ disabled: false }, { disabled: true }];
@@ -40,6 +44,8 @@ test('disables controls immediately and restores their prior state after downloa
   const downloads = [];
   const revoked = [];
   const fetchCalls = [];
+  const busyStates = [];
+  let canExport = true;
   const controller = createExportController({
     button,
     controls,
@@ -52,6 +58,8 @@ test('disables controls immediately and restores their prior state after downloa
     revokeObjectURL: (url) => revoked.push(url),
     download: (url, filename) => downloads.push({ url, filename }),
     showError: () => {},
+    setExporting: (isExporting) => busyStates.push(isExporting),
+    canExport: () => canExport,
   });
 
   const exporting = controller.exportVideo();
@@ -59,6 +67,7 @@ test('disables controls immediately and restores their prior state after downloa
   assert.equal(button.disabled, true);
   assert.deepEqual(controls.map(({ disabled }) => disabled), [true, true]);
 
+  canExport = false;
   request.resolve(new Response(Uint8Array.from([26, 69, 223, 163]), {
     status: 200,
     headers: { 'Content-Type': 'video/webm' },
@@ -69,7 +78,8 @@ test('disables controls immediately and restores their prior state after downloa
   assert.equal(fetchCalls[0][0], '/api/export');
   assert.equal(fetchCalls[0][1].method, 'POST');
   assert.equal(fetchCalls[0][1].headers['Content-Type'], 'application/octet-stream');
-  const decoded = decodeExportRequest(fetchCalls[0][1].body);
+  assert.ok(fetchCalls[0][1].body instanceof Blob);
+  const decoded = decodeExportRequest(await fetchCalls[0][1].body.arrayBuffer());
   assert.deepEqual(decoded.metadata, {
     filename: '访谈.WAV',
     cues: input.cues,
@@ -82,8 +92,9 @@ test('disables controls immediately and restores their prior state after downloa
   }]);
   assert.deepEqual(revoked, ['blob:export-result']);
   assert.equal(button.textContent, '导出透明 WebM');
-  assert.equal(button.disabled, false);
+  assert.equal(button.disabled, true);
   assert.deepEqual(controls.map(({ disabled }) => disabled), [false, true]);
+  assert.deepEqual(busyStates, [true, false]);
 });
 
 test('shows a retry error and preserves loaded audio and settings after failure', async () => {
@@ -109,6 +120,8 @@ test('shows a retry error and preserves loaded audio and settings after failure'
     revokeObjectURL: () => {},
     download: () => { downloadCount += 1; },
     showError: (message) => errors.push(message),
+    setExporting: () => {},
+    canExport: () => true,
   });
 
   await controller.exportVideo();
@@ -123,4 +136,34 @@ test('shows a retry error and preserves loaded audio and settings after failure'
   assert.equal(button.textContent, '导出透明 WebM');
   assert.equal(button.disabled, false);
   assert.deepEqual(controls.map(({ disabled }) => disabled), [false, false]);
+});
+
+test('normalizes the minimum 40 percent scale without silently accepting 39 percent', async () => {
+  const requests = [];
+  const errors = [];
+  const input = makeInput();
+  input.characterScale = 40;
+  const controller = createExportController({
+    button: makeButton(),
+    getExportInput: () => input,
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return new Response(Uint8Array.from([1]), { status: 200 });
+    },
+    createObjectURL: () => 'blob:scale',
+    revokeObjectURL: () => {},
+    download: () => {},
+    showError: (message) => errors.push(message),
+    setExporting: () => {},
+    canExport: () => true,
+  });
+
+  await controller.exportVideo();
+  const minimum = decodeExportRequest(await requests[0].options.body.arrayBuffer());
+  assert.equal(minimum.metadata.scale, 0.4);
+
+  input.characterScale = 39;
+  await controller.exportVideo();
+  assert.equal(requests.length, 1);
+  assert.equal(errors.at(-1), '导出失败，请重试');
 });

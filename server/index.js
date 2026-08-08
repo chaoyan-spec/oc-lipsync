@@ -1,12 +1,12 @@
 import { createReadStream } from 'node:fs';
-import { mkdtemp, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdtemp, open, realpath, rm, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 
-import { decodeExportRequest, ExportRequestError } from '../public/lib/request-envelope.js';
+import { decodeExportMetadata, ExportRequestError } from '../public/lib/request-envelope.js';
 import { isSupportedAudio } from '../public/lib/ui-state.js';
 import { exportTransparentWebm } from './export-video.js';
 
@@ -94,26 +94,16 @@ async function serveStatic(request, response, publicRoot) {
   }
 }
 
-async function readRequestBody(request, limit) {
-  const contentLength = Number(request.headers['content-length']);
-  if (Number.isFinite(contentLength) && contentLength > limit) {
-    const error = new Error('request too large');
-    error.code = 'BODY_TOO_LARGE';
-    throw error;
-  }
+function bodyTooLargeError() {
+  const error = new Error('request too large');
+  error.code = 'BODY_TOO_LARGE';
+  return error;
+}
 
-  const chunks = [];
-  let length = 0;
-  for await (const chunk of request) {
-    length += chunk.length;
-    if (length > limit) {
-      const error = new Error('request too large');
-      error.code = 'BODY_TOO_LARGE';
-      throw error;
-    }
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks, length);
+function validateContentLength(request, limit) {
+  const contentLength = Number(request.headers['content-length']);
+  if (Number.isFinite(contentLength) && contentLength > limit) throw bodyTooLargeError();
+  return Number.isFinite(contentLength) ? contentLength : undefined;
 }
 
 function hasValidScale(scale) {
@@ -139,6 +129,104 @@ function hasValidCues(cues) {
   });
 }
 
+function validateMetadata(metadata) {
+  if (typeof metadata.filename !== 'string' || !isSupportedAudio(metadata.filename)) {
+    const error = new ExportRequestError('Unsupported audio extension.', 'UNSUPPORTED_AUDIO');
+    throw error;
+  }
+  if (!hasValidScale(metadata.scale) || !hasValidCues(metadata.cues)) {
+    throw new ExportRequestError('Invalid export settings.');
+  }
+  return metadata;
+}
+
+async function writeAll(file, chunk) {
+  let offset = 0;
+  while (offset < chunk.length) {
+    const { bytesWritten } = await file.write(chunk, offset, chunk.length - offset, null);
+    if (bytesWritten === 0) throw new Error('Could not write audio payload.');
+    offset += bytesWritten;
+  }
+}
+
+async function streamExportRequest(request, { limit, temporaryRoot }) {
+  const contentLength = validateContentLength(request, limit);
+  const prefix = Buffer.alloc(4);
+  let prefixBytes = 0;
+  let metadataLength;
+  let metadataBytes;
+  let metadataOffset = 0;
+  let metadata;
+  let audioPath;
+  let audioFile;
+  let audioLength = 0;
+  let totalLength = 0;
+
+  try {
+    for await (const chunk of request) {
+      totalLength += chunk.length;
+      if (totalLength > limit) throw bodyTooLargeError();
+
+      let chunkOffset = 0;
+      while (chunkOffset < chunk.length) {
+        if (prefixBytes < prefix.length) {
+          const count = Math.min(prefix.length - prefixBytes, chunk.length - chunkOffset);
+          chunk.copy(prefix, prefixBytes, chunkOffset, chunkOffset + count);
+          prefixBytes += count;
+          chunkOffset += count;
+          if (prefixBytes < prefix.length) continue;
+
+          metadataLength = prefix.readUInt32BE(0);
+          if (contentLength !== undefined && metadataLength === contentLength - prefix.length) {
+            throw new ExportRequestError('Audio payload is empty.', 'EMPTY_AUDIO');
+          }
+          if (
+            metadataLength === 0
+            || metadataLength > limit - prefix.length - 1
+            || (contentLength !== undefined && metadataLength > contentLength - prefix.length - 1)
+          ) {
+            throw new ExportRequestError('Invalid export request: oversized JSON-length prefix.');
+          }
+          metadataBytes = Buffer.alloc(metadataLength);
+          continue;
+        }
+
+        if (metadataOffset < metadataLength) {
+          const count = Math.min(metadataLength - metadataOffset, chunk.length - chunkOffset);
+          chunk.copy(metadataBytes, metadataOffset, chunkOffset, chunkOffset + count);
+          metadataOffset += count;
+          chunkOffset += count;
+          if (metadataOffset < metadataLength) continue;
+
+          metadata = validateMetadata(decodeExportMetadata(metadataBytes));
+          const extension = path.extname(metadata.filename).toLowerCase();
+          audioPath = path.join(temporaryRoot, `audio${extension}`);
+          audioFile = await open(audioPath, 'wx');
+          continue;
+        }
+
+        const audioChunk = chunk.subarray(chunkOffset);
+        await writeAll(audioFile, audioChunk);
+        audioLength += audioChunk.length;
+        chunkOffset = chunk.length;
+      }
+    }
+
+    if (prefixBytes < prefix.length || metadataOffset < metadataLength) {
+      throw new ExportRequestError('Invalid export request: missing or oversized prefix.');
+    }
+    if (audioLength === 0) {
+      throw new ExportRequestError('Audio payload is empty.', 'EMPTY_AUDIO');
+    }
+
+    await audioFile.close();
+    audioFile = undefined;
+    return { metadata, audioPath };
+  } finally {
+    if (audioFile) await audioFile.close().catch(() => {});
+  }
+}
+
 function safeDownloadBase(filename) {
   const extension = path.extname(filename);
   const base = path.basename(filename, extension)
@@ -149,39 +237,20 @@ function safeDownloadBase(filename) {
 
 function contentDisposition(filename) {
   const asciiFallback = filename.replace(/[^\x20-\x7e]/g, '_').replaceAll('"', '_');
-  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+  const encodedFilename = encodeURIComponent(filename).replace(/[!'()*]/g, (character) => (
+    `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+  ));
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedFilename}`;
 }
 
 async function handleExport(request, response, options) {
   let temporaryRoot;
   try {
-    const body = await readRequestBody(request, options.maxBodyBytes);
-    let decoded;
-    try {
-      decoded = decodeExportRequest(body);
-    } catch (error) {
-      if (error instanceof ExportRequestError && error.code === 'EMPTY_AUDIO') {
-        respondJson(response, 400, { error: MISSING_AUDIO_ERROR });
-      } else {
-        respondJson(response, 400, { error: INVALID_SETTINGS_ERROR });
-      }
-      return;
-    }
-
-    const { metadata, audioBytes } = decoded;
-    if (typeof metadata.filename !== 'string' || !isSupportedAudio(metadata.filename)) {
-      respondJson(response, 400, { error: UNSUPPORTED_AUDIO_ERROR });
-      return;
-    }
-    if (!hasValidScale(metadata.scale) || !hasValidCues(metadata.cues)) {
-      respondJson(response, 400, { error: INVALID_SETTINGS_ERROR });
-      return;
-    }
-
     temporaryRoot = await mkdtemp(path.join(options.temporaryRoot, 'oc-lipsync-request-'));
-    const extension = path.extname(metadata.filename).toLowerCase();
-    const audioPath = path.join(temporaryRoot, `audio${extension}`);
-    await writeFile(audioPath, audioBytes);
+    const { metadata, audioPath } = await streamExportRequest(request, {
+      limit: options.maxBodyBytes,
+      temporaryRoot,
+    });
 
     const result = await options.exportVideo({
       audioPath,
@@ -204,6 +273,12 @@ async function handleExport(request, response, options) {
     if (error?.code === 'BODY_TOO_LARGE') {
       request.resume();
       if (!response.headersSent) respondJson(response, 413, { error: '音频文件过大' });
+    } else if (error instanceof ExportRequestError && error.code === 'EMPTY_AUDIO') {
+      if (!response.headersSent) respondJson(response, 400, { error: MISSING_AUDIO_ERROR });
+    } else if (error instanceof ExportRequestError && error.code === 'UNSUPPORTED_AUDIO') {
+      if (!response.headersSent) respondJson(response, 400, { error: UNSUPPORTED_AUDIO_ERROR });
+    } else if (error instanceof ExportRequestError) {
+      if (!response.headersSent) respondJson(response, 400, { error: INVALID_SETTINGS_ERROR });
     } else if (response.headersSent) {
       response.destroy();
     } else {
