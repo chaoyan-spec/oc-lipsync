@@ -1,4 +1,5 @@
 import { decodeAudio } from './lib/audio.js';
+import { createExportController } from './lib/export-client.js';
 import { buildMouthTimeline, mouthAtTime } from './lib/lipsync.js';
 import { createInitialUiState, isSupportedAudio } from './lib/ui-state.js';
 
@@ -63,6 +64,8 @@ function setMouth(mouthState) {
 function rebuildTimeline() {
   if (state.energies.length === 0) {
     state.cues = [];
+    state.canExport = false;
+    elements.exportButton.disabled = true;
     setMouth('closed');
     return;
   }
@@ -74,6 +77,10 @@ function rebuildTimeline() {
     threshold,
     minOpenSeconds: state.minOpenSeconds,
   });
+  state.canExport = Boolean(state.file) && state.cues.some(({ state: mouthState }) => (
+    mouthState === 'open'
+  ));
+  elements.exportButton.disabled = !state.canExport;
   setMouth(mouthAtTime(state.cues, elements.audio.currentTime));
 }
 
@@ -225,6 +232,28 @@ elements.characterScale.addEventListener('input', () => {
   state.characterScale = Number(elements.characterScale.value);
   elements.characterScaleValue.value = `${state.characterScale}%`;
   elements.character.style.width = `${state.characterScale}%`;
+});
+
+const exportController = createExportController({
+  button: elements.exportButton,
+  controls: [
+    elements.fileInput,
+    elements.playButton,
+    elements.progress,
+    elements.sensitivity,
+    elements.minOpen,
+    elements.characterScale,
+  ],
+  getExportInput: () => ({
+    file: state.file,
+    cues: state.cues,
+    characterScale: state.characterScale,
+  }),
+  showError,
+});
+
+elements.exportButton.addEventListener('click', () => {
+  void exportController.exportVideo();
 });
 
 window.addEventListener('beforeunload', () => {
