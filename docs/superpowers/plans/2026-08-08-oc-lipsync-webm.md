@@ -398,24 +398,24 @@ Commit message: `feat: connect transparent video download`.
 
 **Files:**
 - Create: `README.md`
+- Create: `启动OC口播机.command`
 - Modify only if verification finds a scoped defect: files from Tasks 1–5 plus their corresponding tests.
 
 **Interfaces:**
 - Consumes: the complete local tool.
-- Produces: a repeatable `npm start` workflow and one verified sample export under `outputs/`.
+- Produces: a repeatable double-click/`npm start` workflow, one verified sample export, and one packaged tool archive under `outputs/`.
 
 - [ ] **Step 1: Write concise user instructions**
 
 Document exactly:
 
-1. run `npm install` once;
-2. run `npm start`;
-3. open the printed local address;
-4. import MP3/WAV/M4A;
-5. preview and adjust the three controls;
-6. export WebM and import it into the editing workflow.
+1. double-click `启动OC口播机.command` (or run `npm start` in Terminal);
+2. open the printed local address if the browser does not open automatically;
+3. import MP3/WAV/M4A;
+4. preview and adjust the three controls;
+5. export WebM and import it into the editing workflow.
 
-Also state that files remain local and FFmpeg is required at `/opt/homebrew/bin/ffmpeg` or on `PATH`.
+Also state that no npm installation is needed, files remain local, and FFmpeg is required at `/opt/homebrew/bin/ffmpeg` or on `PATH`. The `.command` script must resolve its own directory, start the server, open the printed loopback URL, and preserve the terminal so the user can stop it with Control-C.
 
 - [ ] **Step 2: Run the complete automated verification**
 
@@ -448,3 +448,7 @@ Use ffprobe and decoded RGBA corner inspection to confirm:
 Commit `README.md` and any test-backed scoped fixes. Do not commit generated `outputs/*.webm` or temporary frames.
 
 Commit message: `docs: add local OC lip-sync workflow`.
+
+- [ ] **Step 6: Package the user-facing tool**
+
+Create `outputs/OC口播机.zip` containing the runtime files, bundled OC assets, README, and double-click launcher, while excluding `.git`, `.worktrees`, `.superpowers`, test fixtures, temporary files, and previous outputs. Verify a fresh unzip contains everything required by `npm start` and passes the syntax build.
