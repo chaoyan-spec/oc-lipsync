@@ -322,39 +322,47 @@ Commit message: `feat: export verified transparent WebM`.
 ### Task 5: Export API and browser download
 
 **Files:**
-- Create: `server/index.test.ts`
-- Create: `server/index.ts`
-- Modify: `src/App.test.tsx`
-- Modify: `src/App.tsx`
+- Create: `server/index.test.js`
+- Create: `server/index.js`
+- Create: `public/lib/request-envelope.js`
+- Create: `src/request-envelope.test.js`
+- Create: `public/lib/export-client.js`
+- Create: `src/export-client.test.js`
+- Modify: `public/app.js`
+- Modify: `public/index.html`
+- Modify: `server/static-server.js`
 - Modify: `package.json`
 
 **Interfaces:**
-- Consumes: `exportTransparentWebm(...)` from `server/export-video.ts`.
-- Produces: `POST /api/export`, multipart fields `audio`, `mouthCues`, `characterScale`.
+- Consumes: `exportTransparentWebm(...)` from `server/export-video.js`.
+- Produces: `encodeExportRequest(metadata, audioBytes): Uint8Array` and `decodeExportRequest(bytes)` using a four-byte big-endian JSON-length prefix, UTF-8 JSON metadata, then raw audio bytes.
+- Produces: `POST /api/export` with the binary envelope body.
 - Returns: `video/webm` attachment named `<source-base>-oc-lipsync.webm`.
 
 - [ ] **Step 1: Write failing API validation tests**
 
-Use Supertest to assert:
+Use `node:test`, a server bound to an ephemeral loopback port, and Node `fetch` to assert:
 
 - missing audio returns `400` and `{ error: '请先选择口播音频' }`;
 - unsupported extension returns `400` and the agreed unsupported-audio message;
-- invalid JSON cues or a scale outside `0.4..1` returns `400`;
+- invalid/non-contiguous cues or a scale outside `0.4..1` returns `400`;
 - a valid fixture request returns `200`, `Content-Type: video/webm`, and an attachment filename ending `-oc-lipsync.webm`.
+
+Add focused request-envelope tests for round-tripping Unicode metadata and arbitrary binary audio, rejecting a missing/oversized prefix, and rejecting an empty audio payload.
 
 - [ ] **Step 2: Run the API tests and verify RED**
 
-Run: `npm test -- server/index.test.ts`
+Run: `npm test -- src/request-envelope.test.js server/index.test.js`
 
-Expected: FAIL because the Express app is missing.
+Expected: FAIL because the envelope module and export server do not exist.
 
 - [ ] **Step 3: Implement the local export endpoint**
 
-Use Multer with one-file upload, a 500 MB limit, explicit `.mp3/.wav/.m4a` validation, JSON cue validation, and guaranteed cleanup after `res.download` completes or errors. Export `createApp()` for tests. In production, serve `dist/` and listen only on `127.0.0.1`.
+Refactor the existing safe static handler into `server/index.js`, and add the binary `/api/export` route with a 500 MB body limit, explicit `.mp3/.wav/.m4a` validation, scale validation, contiguous cue validation, temporary audio-file creation, and guaranteed cleanup after the response completes or errors. Export `createAppServer()` for tests. Production must serve `public/` and listen only on `127.0.0.1`.
 
 - [ ] **Step 4: Write the failing browser export-state tests**
 
-Mock `fetch` to test that clicking export:
+Implement a small `createExportController` helper in `public/lib/export-client.js` and test with injected `fetch`, download, and object-URL functions that exporting:
 
 - changes button copy to `正在导出…` and disables controls;
 - downloads the returned blob as `<audio-base>-oc-lipsync.webm`;
@@ -363,13 +371,13 @@ Mock `fetch` to test that clicking export:
 
 - [ ] **Step 5: Run the browser tests and verify RED**
 
-Run: `npm test -- src/App.test.tsx`
+Run: `npm test -- src/export-client.test.js`
 
 Expected: new export tests FAIL because the click handler is absent.
 
 - [ ] **Step 6: Implement export submission, progress state, and download**
 
-Post `FormData` with the original audio, serialized cues, and scale. Use the returned `Blob`, `URL.createObjectURL`, a temporary download anchor, and `URL.revokeObjectURL`. Keep loaded state on failure.
+Post the binary envelope containing original filename, cues, scale normalized to `0.4..1`, and raw audio bytes. Use the returned `Blob`, `URL.createObjectURL`, a temporary download anchor, and `URL.revokeObjectURL`. Keep loaded state and settings on failure.
 
 - [ ] **Step 7: Run all tests, build, and commit**
 
