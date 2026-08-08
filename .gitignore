@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.worktrees/
+.superpowers/
+work/
+outputs/*.webm
+*.log
+
