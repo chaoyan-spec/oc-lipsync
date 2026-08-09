@@ -3,6 +3,8 @@ import { createExportRequestBody } from './request-envelope.js';
 const EXPORT_LABEL = '导出透明 WebM';
 const EXPORTING_LABEL = '正在导出…';
 const EXPORT_ERROR = '导出失败，请重试';
+const EXPORT_ERROR_WITH_RESULT = '本次导出失败，上次完成的 WebM 仍可保存';
+const EXPORT_SUCCESS = '导出完成，点击保存 WebM';
 
 function normalizeScale(value) {
   const numericValue = Number(value);
@@ -15,16 +17,6 @@ function normalizeScale(value) {
 function downloadBase(fileName) {
   const leafName = fileName.split(/[\\/]/).at(-1);
   return leafName.replace(/\.[^.]+$/, '') || 'audio';
-}
-
-function browserDownload(url, filename) {
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.hidden = true;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
 }
 
 export function createFileSelectionHandler({ isExporting, selectFile }) {
@@ -43,17 +35,26 @@ export function updateDropZoneBusy(dropZone, isBusy) {
 
 export function createExportController({
   button,
+  downloadLink,
   controls = [],
   getExportInput,
   fetchImpl = (...args) => fetch(...args),
   createObjectURL = (blob) => URL.createObjectURL(blob),
   revokeObjectURL = (url) => URL.revokeObjectURL(url),
-  download = browserDownload,
   showError = () => {},
   setExporting = () => {},
   canExport = () => true,
 }) {
   let exporting = false;
+  let resultUrl = '';
+
+  function clearDownload() {
+    if (resultUrl) revokeObjectURL(resultUrl);
+    resultUrl = '';
+    downloadLink.hidden = true;
+    downloadLink.removeAttribute('href');
+    downloadLink.removeAttribute('download');
+  }
 
   async function exportVideo() {
     if (exporting) return;
@@ -80,14 +81,16 @@ export function createExportController({
       if (!response.ok) throw new Error(`Export failed with status ${response.status}.`);
 
       const blob = await response.blob();
-      const url = createObjectURL(blob);
-      try {
-        download(url, `${downloadBase(file.name)}-oc-lipsync.webm`);
-      } finally {
-        revokeObjectURL(url);
-      }
+      const nextResultUrl = createObjectURL(blob);
+      downloadLink.href = nextResultUrl;
+      downloadLink.download = `${downloadBase(file.name)}-oc-lipsync.webm`;
+      downloadLink.textContent = EXPORT_SUCCESS;
+      downloadLink.hidden = false;
+      const previousResultUrl = resultUrl;
+      resultUrl = nextResultUrl;
+      if (previousResultUrl) revokeObjectURL(previousResultUrl);
     } catch {
-      showError(EXPORT_ERROR);
+      showError(resultUrl ? EXPORT_ERROR_WITH_RESULT : EXPORT_ERROR);
     } finally {
       controls.forEach((control, index) => {
         control.disabled = disabledStates[index];
@@ -99,5 +102,5 @@ export function createExportController({
     }
   }
 
-  return { exportVideo };
+  return { dispose: clearDownload, exportVideo };
 }

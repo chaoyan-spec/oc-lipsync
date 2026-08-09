@@ -46,3 +46,32 @@ test('sets the OC size control minimum to 40 percent', async () => {
   const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
   assert.match(html, /id="character-scale"[^>]*min="40"/);
 });
+
+test('provides a persistent visible save-link surface after export', async () => {
+  const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+
+  assert.match(
+    html,
+    /<a[^>]*id="download-link"[^>]*hidden[^>]*>\s*导出完成，点击保存 WebM\s*<\/a>/,
+  );
+});
+
+test('cleans the retained export URL before the page unloads', async () => {
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  assert.match(app, /beforeunload[\s\S]*exportController\.dispose\(\)/);
+});
+
+test('explains when a loaded quiet clip cannot generate mouth cues', async () => {
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  assert.match(app, /QUIET_AUDIO_ERROR\s*=\s*['"][^'"]*(声音太轻|低于)[^'"]*['"]/);
+  assert.match(app, /!hasOpenMouthCue[\s\S]*showError\(QUIET_AUDIO_ERROR\)/);
+});
+
+test('gives the enabled export button an enabled cursor and color treatment', async () => {
+  const css = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+
+  assert.match(css, /\.export-button:not\(:disabled\)\s*\{[^}]*cursor:\s*pointer/);
+  assert.match(css, /\.export-button:not\(:disabled\)\s*\{[^}]*background:/);
+});

@@ -11,7 +11,7 @@ const CLOSED_MOUTH = '/oc-mouth-closed.png';
 const OPEN_MOUTH = '/oc-mouth-open.png';
 const FRAME_SECONDS = 1 / 30;
 const DECODE_ERROR = '暂不支持该音频，请换用 MP3、WAV 或 M4A';
-const SILENT_ERROR = '未检测到有效声音，请调低嘴型灵敏度后重试';
+const QUIET_AUDIO_ERROR = '音频声音太轻，低于可识别阈值，暂时无法导出';
 
 const elements = {
   audio: document.querySelector('#preview-audio'),
@@ -21,6 +21,7 @@ const elements = {
   currentTime: document.querySelector('#current-time'),
   dropZone: document.querySelector('#drop-zone'),
   duration: document.querySelector('#duration'),
+  downloadLink: document.querySelector('#download-link'),
   error: document.querySelector('#error-message'),
   exportButton: document.querySelector('.export-button'),
   fileInput: document.querySelector('#audio-file'),
@@ -82,10 +83,16 @@ function rebuildTimeline() {
     threshold,
     minOpenSeconds: state.minOpenSeconds,
   });
-  state.canExport = Boolean(state.file) && state.cues.some(({ state: mouthState }) => (
+  const hasOpenMouthCue = state.cues.some(({ state: mouthState }) => (
     mouthState === 'open'
   ));
+  state.canExport = Boolean(state.file) && hasOpenMouthCue;
   elements.exportButton.disabled = !state.canExport;
+  if (state.file && !hasOpenMouthCue) {
+    showError(QUIET_AUDIO_ERROR);
+  } else if (state.error === QUIET_AUDIO_ERROR) {
+    showError();
+  }
   setMouth(mouthAtTime(state.cues, elements.audio.currentTime));
 }
 
@@ -131,8 +138,6 @@ async function loadAudio(file) {
     elements.playButton.disabled = !state.canPlay;
     elements.progress.disabled = false;
 
-    const peak = energies.reduce((highest, energy) => Math.max(highest, energy), 0);
-    if (peak < 0.0001) showError(SILENT_ERROR);
     rebuildTimeline();
   } catch {
     if (loadId !== state.loadId) return;
@@ -144,6 +149,7 @@ async function loadAudio(file) {
 
 function useSelectedFile(file) {
   if (!file) return;
+  exportController.dispose();
 
   if (!isSupportedAudio(file.name)) {
     state.loadId += 1;
@@ -248,6 +254,7 @@ elements.characterScale.addEventListener('input', () => {
 
 const exportController = createExportController({
   button: elements.exportButton,
+  downloadLink: elements.downloadLink,
   controls: [
     elements.fileInput,
     elements.playButton,
@@ -274,6 +281,7 @@ elements.exportButton.addEventListener('click', () => {
 });
 
 window.addEventListener('beforeunload', () => {
+  exportController.dispose();
   if (state.audioUrl) URL.revokeObjectURL(state.audioUrl);
 });
 

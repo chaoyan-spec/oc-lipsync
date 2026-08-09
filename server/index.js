@@ -11,11 +11,14 @@ import { isSupportedAudio } from '../public/lib/ui-state.js';
 import { exportTransparentWebm } from './export-video.js';
 
 const MAX_BODY_BYTES = 500 * 1024 * 1024;
+const MAX_METADATA_BYTES = 1024 * 1024;
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_PUBLIC_ROOT = await realpath(path.join(PROJECT_ROOT, 'public'));
 const MISSING_AUDIO_ERROR = '请先选择口播音频';
 const UNSUPPORTED_AUDIO_ERROR = '暂不支持该音频，请换用 MP3、WAV 或 M4A';
 const INVALID_SETTINGS_ERROR = '导出参数无效';
+const OVERSIZED_METADATA_ERROR = '导出参数过大';
+const UNSUPPORTED_MEDIA_TYPE_ERROR = '请求格式不受支持';
 const READY_PATH = '/__oc-lipsync/ready';
 const READY_MARKER = 'OC_LIPSYNC_READY';
 
@@ -102,6 +105,10 @@ function bodyTooLargeError() {
   return error;
 }
 
+function metadataTooLargeError() {
+  return new ExportRequestError('Export metadata is too large.', 'METADATA_TOO_LARGE');
+}
+
 function validateContentLength(request, limit) {
   const contentLength = Number(request.headers['content-length']);
   if (Number.isFinite(contentLength) && contentLength > limit) throw bodyTooLargeError();
@@ -151,7 +158,7 @@ async function writeAll(file, chunk) {
   }
 }
 
-async function streamExportRequest(request, { limit, temporaryRoot }) {
+async function streamExportRequest(request, { limit, metadataLimit, temporaryRoot }) {
   const contentLength = validateContentLength(request, limit);
   const prefix = Buffer.alloc(4);
   let prefixBytes = 0;
@@ -179,6 +186,7 @@ async function streamExportRequest(request, { limit, temporaryRoot }) {
           if (prefixBytes < prefix.length) continue;
 
           metadataLength = prefix.readUInt32BE(0);
+          if (metadataLength > metadataLimit) throw metadataTooLargeError();
           if (contentLength !== undefined && metadataLength === contentLength - prefix.length) {
             throw new ExportRequestError('Audio payload is empty.', 'EMPTY_AUDIO');
           }
@@ -251,6 +259,7 @@ async function handleExport(request, response, options) {
     temporaryRoot = await mkdtemp(path.join(options.temporaryRoot, 'oc-lipsync-request-'));
     const { metadata, audioPath } = await streamExportRequest(request, {
       limit: options.maxBodyBytes,
+      metadataLimit: options.maxMetadataBytes,
       temporaryRoot,
     });
 
@@ -275,6 +284,9 @@ async function handleExport(request, response, options) {
     if (error?.code === 'BODY_TOO_LARGE') {
       request.resume();
       if (!response.headersSent) respondJson(response, 413, { error: '音频文件过大' });
+    } else if (error instanceof ExportRequestError && error.code === 'METADATA_TOO_LARGE') {
+      request.resume();
+      if (!response.headersSent) respondJson(response, 413, { error: OVERSIZED_METADATA_ERROR });
     } else if (error instanceof ExportRequestError && error.code === 'EMPTY_AUDIO') {
       if (!response.headersSent) respondJson(response, 400, { error: MISSING_AUDIO_ERROR });
     } else if (error instanceof ExportRequestError && error.code === 'UNSUPPORTED_AUDIO') {
@@ -294,6 +306,7 @@ async function handleExport(request, response, options) {
 export function createAppServer({
   exportVideo = exportTransparentWebm,
   maxBodyBytes = MAX_BODY_BYTES,
+  maxMetadataBytes = MAX_METADATA_BYTES,
   publicRoot = DEFAULT_PUBLIC_ROOT,
   temporaryRoot = tmpdir(),
 } = {}) {
@@ -315,9 +328,15 @@ export function createAppServer({
         respondText(response, 405, 'Method Not Allowed');
         return;
       }
+      if (request.headers['content-type'] !== 'application/octet-stream') {
+        request.resume();
+        respondJson(response, 415, { error: UNSUPPORTED_MEDIA_TYPE_ERROR });
+        return;
+      }
       void handleExport(request, response, {
         exportVideo,
         maxBodyBytes,
+        maxMetadataBytes,
         temporaryRoot,
       });
       return;

@@ -316,6 +316,33 @@ h1 {
   cursor: not-allowed;
 }
 
+.export-button:not(:disabled) {
+  color: #fffaf5;
+  background: #7f2853;
+  cursor: pointer;
+}
+
+.export-button:not(:disabled):hover {
+  background: #672d53;
+}
+
+.download-link {
+  display: block;
+  margin-top: 12px;
+  padding: 12px 16px;
+  border: 1px solid #7f2853;
+  border-radius: 10px;
+  color: #7f2853;
+  background: #fff3f7;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.download-link[hidden] {
+  display: none;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

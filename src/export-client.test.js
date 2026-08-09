@@ -18,6 +18,16 @@ function makeButton() {
   return { disabled: false, textContent: '导出透明 WebM' };
 }
 
+function makeDownloadLink() {
+  return {
+    hidden: true,
+    textContent: '导出完成，点击保存 WebM',
+    removeAttribute(name) {
+      delete this[name];
+    },
+  };
+}
+
 function makeInput() {
   const file = new Blob([Uint8Array.from([0, 255, 7])], { type: 'audio/wav' });
   Object.defineProperties(file, {
@@ -39,15 +49,16 @@ function makeInput() {
 test('disables controls and derives the final button state from current loaded state', async () => {
   const request = deferred();
   const button = makeButton();
+  const downloadLink = makeDownloadLink();
   const controls = [{ disabled: false }, { disabled: true }];
   const input = makeInput();
-  const downloads = [];
   const revoked = [];
   const fetchCalls = [];
   const busyStates = [];
   let canExport = true;
   const controller = createExportController({
     button,
+    downloadLink,
     controls,
     getExportInput: () => input,
     fetchImpl: async (...args) => {
@@ -56,7 +67,6 @@ test('disables controls and derives the final button state from current loaded s
     },
     createObjectURL: () => 'blob:export-result',
     revokeObjectURL: (url) => revoked.push(url),
-    download: (url, filename) => downloads.push({ url, filename }),
     showError: () => {},
     setExporting: (isExporting) => busyStates.push(isExporting),
     canExport: () => canExport,
@@ -86,11 +96,11 @@ test('disables controls and derives the final button state from current loaded s
     scale: 0.72,
   });
   assert.deepEqual(decoded.audioBytes, Uint8Array.from([0, 255, 7]));
-  assert.deepEqual(downloads, [{
-    url: 'blob:export-result',
-    filename: '访谈-oc-lipsync.webm',
-  }]);
-  assert.deepEqual(revoked, ['blob:export-result']);
+  assert.equal(downloadLink.hidden, false);
+  assert.equal(downloadLink.textContent, '导出完成，点击保存 WebM');
+  assert.equal(downloadLink.href, 'blob:export-result');
+  assert.equal(downloadLink.download, '访谈-oc-lipsync.webm');
+  assert.deepEqual(revoked, []);
   assert.equal(button.textContent, '导出透明 WebM');
   assert.equal(button.disabled, true);
   assert.deepEqual(controls.map(({ disabled }) => disabled), [false, true]);
@@ -99,6 +109,7 @@ test('disables controls and derives the final button state from current loaded s
 
 test('shows a retry error and preserves loaded audio and settings after failure', async () => {
   const button = makeButton();
+  const downloadLink = makeDownloadLink();
   const controls = [{ disabled: false }, { disabled: false }];
   const input = makeInput();
   const originalInput = structuredClone({
@@ -107,9 +118,9 @@ test('shows a retry error and preserves loaded audio and settings after failure'
     characterScale: input.characterScale,
   });
   const errors = [];
-  let downloadCount = 0;
   const controller = createExportController({
     button,
+    downloadLink,
     controls,
     getExportInput: () => input,
     fetchImpl: async () => new Response(JSON.stringify({ error: 'encoder failed' }), {
@@ -118,7 +129,6 @@ test('shows a retry error and preserves loaded audio and settings after failure'
     }),
     createObjectURL: () => 'blob:unused',
     revokeObjectURL: () => {},
-    download: () => { downloadCount += 1; },
     showError: (message) => errors.push(message),
     setExporting: () => {},
     canExport: () => true,
@@ -127,7 +137,9 @@ test('shows a retry error and preserves loaded audio and settings after failure'
   await controller.exportVideo();
 
   assert.equal(errors.at(-1), '导出失败，请重试');
-  assert.equal(downloadCount, 0);
+  assert.equal(downloadLink.hidden, true);
+  assert.equal(downloadLink.href, undefined);
+  assert.equal(downloadLink.download, undefined);
   assert.deepEqual({
     fileName: input.file.name,
     cues: input.cues,
@@ -145,6 +157,7 @@ test('normalizes the minimum 40 percent scale without silently accepting 39 perc
   input.characterScale = 40;
   const controller = createExportController({
     button: makeButton(),
+    downloadLink: makeDownloadLink(),
     getExportInput: () => input,
     fetchImpl: async (url, options) => {
       requests.push({ url, options });
@@ -152,7 +165,6 @@ test('normalizes the minimum 40 percent scale without silently accepting 39 perc
     },
     createObjectURL: () => 'blob:scale',
     revokeObjectURL: () => {},
-    download: () => {},
     showError: (message) => errors.push(message),
     setExporting: () => {},
     canExport: () => true,
@@ -165,5 +177,80 @@ test('normalizes the minimum 40 percent scale without silently accepting 39 perc
   input.characterScale = 39;
   await controller.exportVideo();
   assert.equal(requests.length, 1);
-  assert.equal(errors.at(-1), '导出失败，请重试');
+  assert.equal(errors.at(-1), '本次导出失败，上次完成的 WebM 仍可保存');
+});
+
+test('revokes a retained result only when it is replaced or disposed on unload', async () => {
+  const downloadLink = makeDownloadLink();
+  const urls = ['blob:first-result', 'blob:replacement-result'];
+  const revoked = [];
+  const replacement = deferred();
+  let requestCount = 0;
+  const controller = createExportController({
+    button: makeButton(),
+    downloadLink,
+    getExportInput: makeInput,
+    fetchImpl: async () => {
+      requestCount += 1;
+      return requestCount === 1
+        ? new Response(Uint8Array.from([1]), { status: 200 })
+        : replacement.promise;
+    },
+    createObjectURL: () => urls.shift(),
+    revokeObjectURL: (url) => revoked.push(url),
+    showError: () => {},
+    setExporting: () => {},
+    canExport: () => true,
+  });
+
+  await controller.exportVideo();
+  assert.equal(downloadLink.href, 'blob:first-result');
+  assert.deepEqual(revoked, []);
+
+  const replacing = controller.exportVideo();
+  assert.equal(downloadLink.href, 'blob:first-result');
+  assert.deepEqual(revoked, []);
+
+  replacement.resolve(new Response(Uint8Array.from([2]), { status: 200 }));
+  await replacing;
+  assert.equal(downloadLink.hidden, false);
+  assert.equal(downloadLink.href, 'blob:replacement-result');
+  assert.equal(downloadLink.download, '访谈-oc-lipsync.webm');
+  assert.deepEqual(revoked, ['blob:first-result']);
+
+  controller.dispose();
+  assert.equal(downloadLink.hidden, true);
+  assert.equal(downloadLink.href, undefined);
+  assert.equal(downloadLink.download, undefined);
+  assert.deepEqual(revoked, ['blob:first-result', 'blob:replacement-result']);
+});
+
+test('keeps the last successful save link when a replacement export fails', async () => {
+  const downloadLink = makeDownloadLink();
+  const errors = [];
+  const revoked = [];
+  let requestCount = 0;
+  const controller = createExportController({
+    button: makeButton(),
+    downloadLink,
+    getExportInput: makeInput,
+    fetchImpl: async () => {
+      requestCount += 1;
+      return new Response(Uint8Array.from([1]), { status: requestCount === 1 ? 200 : 500 });
+    },
+    createObjectURL: () => 'blob:last-success',
+    revokeObjectURL: (url) => revoked.push(url),
+    showError: (message) => errors.push(message),
+    setExporting: () => {},
+    canExport: () => true,
+  });
+
+  await controller.exportVideo();
+  await controller.exportVideo();
+
+  assert.equal(downloadLink.hidden, false);
+  assert.equal(downloadLink.href, 'blob:last-success');
+  assert.equal(downloadLink.download, '访谈-oc-lipsync.webm');
+  assert.deepEqual(revoked, []);
+  assert.equal(errors.at(-1), '本次导出失败，上次完成的 WebM 仍可保存');
 });

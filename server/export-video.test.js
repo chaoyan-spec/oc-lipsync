@@ -8,6 +8,7 @@ import { promisify } from 'node:util';
 import { afterEach, it } from 'node:test';
 
 import { exportTransparentWebm } from './export-video.js';
+import { resolveExecutable } from './resolve-executable.js';
 
 const execFileAsync = promisify(execFile);
 const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -20,6 +21,10 @@ afterEach(async () => {
 
 it('exports a verified transparent VP9 WebM with Opus audio', { timeout: 120_000 }, async () => {
   temporaryRoot = await mkdtemp(join(tmpdir(), 'oc-lipsync-export-test-'));
+  const [ffmpegPath, ffprobePath] = await Promise.all([
+    resolveExecutable('ffmpeg'),
+    resolveExecutable('ffprobe'),
+  ]);
 
   const result = await exportTransparentWebm({
     audioPath: join(projectRoot, 'test/fixtures/tone-silence.wav'),
@@ -46,7 +51,7 @@ it('exports a verified transparent VP9 WebM with Opus audio', { timeout: 120_000
     { width: 1080, height: 1920, fps: 30, hasAudio: true },
   );
 
-  const { stdout } = await execFileAsync('/opt/homebrew/bin/ffprobe', [
+  const { stdout } = await execFileAsync(ffprobePath, [
     '-v', 'error',
     '-show_streams',
     '-of', 'json',
@@ -65,7 +70,7 @@ it('exports a verified transparent VP9 WebM with Opus audio', { timeout: 120_000
   assert.equal(result.pixelFormat, video.pix_fmt);
   assert.deepEqual(await readdir(dirname(result.path)), [basename(result.path)]);
 
-  const { stdout: corner } = await execFileAsync('/opt/homebrew/bin/ffmpeg', [
+  const { stdout: corner } = await execFileAsync(ffmpegPath, [
     '-hide_banner', '-loglevel', 'error',
     '-c:v', 'libvpx-vp9',
     '-i', result.path,

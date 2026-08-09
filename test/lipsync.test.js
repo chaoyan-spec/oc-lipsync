@@ -28,6 +28,33 @@ describe('buildMouthTimeline', () => {
       { start: 0.3, end: 0.4, state: 'closed' },
     ]);
   });
+
+  it('does not cascade a one-frame burst opened with the 30 fps and 120 ms defaults', () => {
+    const energies = Array(20).fill(0);
+    energies[1] = 0.5;
+
+    assert.deepEqual(buildMouthTimeline(energies, {
+      frameSeconds: 1 / 30, threshold: 0.2, minOpenSeconds: 0.12,
+    }), [
+      { start: 0, end: 0.033333, state: 'closed' },
+      { start: 0.033333, end: 0.166667, state: 'open' },
+      { start: 0.166667, end: 0.666667, state: 'closed' },
+    ]);
+  });
+
+  it('does not cascade a two-frame burst opened with the 30 fps and 120 ms defaults', () => {
+    const energies = Array(20).fill(0);
+    energies[1] = 0.5;
+    energies[2] = 0.5;
+
+    assert.deepEqual(buildMouthTimeline(energies, {
+      frameSeconds: 1 / 30, threshold: 0.2, minOpenSeconds: 0.12,
+    }), [
+      { start: 0, end: 0.033333, state: 'closed' },
+      { start: 0.033333, end: 0.166667, state: 'open' },
+      { start: 0.166667, end: 0.666667, state: 'closed' },
+    ]);
+  });
 });
 
 it('uses a closed final boundary', () => {

@@ -40,15 +40,19 @@ export function buildMouthTimeline(energies, options) {
   validateOptions(options);
 
   const { frameSeconds, minOpenSeconds, threshold } = options;
-  const states = energies.map((energy) => (
+  const classifiedStates = energies.map((energy) => (
     energy > threshold ? 'open' : 'closed'
   ));
+  const states = [...classifiedStates];
 
-  for (let index = 0; index < states.length; index += 1) {
-    if (states[index] !== 'open') continue;
+  for (let index = 0; index < classifiedStates.length; index += 1) {
+    if (classifiedStates[index] !== 'open') continue;
 
     const start = index;
-    while (index < states.length && states[index] === 'open') index += 1;
+    while (
+      index < classifiedStates.length
+      && classifiedStates[index] === 'open'
+    ) index += 1;
 
     const minimumEnd = Math.min(
       states.length,

@@ -11,6 +11,8 @@ const HOST = '127.0.0.1';
 const MISSING_AUDIO_ERROR = '请先选择口播音频';
 const UNSUPPORTED_AUDIO_ERROR = '暂不支持该音频，请换用 MP3、WAV 或 M4A';
 const INVALID_SETTINGS_ERROR = '导出参数无效';
+const OVERSIZED_METADATA_ERROR = '导出参数过大';
+const UNSUPPORTED_MEDIA_TYPE_ERROR = '请求格式不受支持';
 const servers = [];
 const temporaryRoots = [];
 
@@ -102,6 +104,39 @@ test('rejects malformed streamed prefixes and metadata', async () => {
     const response = await post(baseUrl, body);
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), { error: INVALID_SETTINGS_ERROR });
+  }
+});
+
+test('rejects an oversized metadata prefix using its separate limit', async () => {
+  let exportCount = 0;
+  const baseUrl = await startServer({
+    maxMetadataBytes: 16,
+    exportVideo: async () => { exportCount += 1; },
+  });
+  const prefix = new Uint8Array(4);
+  new DataView(prefix.buffer).setUint32(0, 17, false);
+
+  const response = await post(baseUrl, prefix);
+
+  assert.equal(response.status, 413);
+  assert.deepEqual(await response.json(), { error: OVERSIZED_METADATA_ERROR });
+  assert.equal(exportCount, 0);
+});
+
+test('requires the exact binary request content type before parsing', async () => {
+  const baseUrl = await startServer();
+  const headersToReject = [undefined, 'text/plain', 'application/octet-stream; charset=utf-8'];
+
+  for (const contentType of headersToReject) {
+    const headers = contentType ? { 'Content-Type': contentType } : undefined;
+    const response = await fetch(`${baseUrl}/api/export`, {
+      method: 'POST',
+      headers,
+      body: Uint8Array.from([0, 0, 0]),
+    });
+
+    assert.equal(response.status, 415);
+    assert.deepEqual(await response.json(), { error: UNSUPPORTED_MEDIA_TYPE_ERROR });
   }
 });
 
