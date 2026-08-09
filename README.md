@@ -10,6 +10,6 @@
 4. 预览效果，并按需要调整灵敏度、最短张嘴时间和 OC 大小三个控制项。
 5. 点击导出 WebM，再把下载的视频导入剪辑软件继续制作。
 
-不需要运行 `npm install`。电脑需要已经安装 FFmpeg：程序会使用 `/opt/homebrew/bin/ffmpeg`，并需要同目录下的 `ffprobe`；也请确保它们可在 `PATH` 中使用。
+不需要运行 `npm install`。电脑需要已经安装 FFmpeg 和 ffprobe：程序会优先使用 `/opt/homebrew/bin/ffmpeg` 与 `/opt/homebrew/bin/ffprobe`；如果这两个路径不可执行，则从 `PATH` 中查找。
 
 使用结束后，回到启动程序的终端窗口，按 `Control-C` 停止本地服务。

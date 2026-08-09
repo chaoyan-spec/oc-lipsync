@@ -81,6 +81,15 @@ test('returns the agreed error when audio is missing', async () => {
   assert.deepEqual(await response.json(), { error: MISSING_AUDIO_ERROR });
 });
 
+test('exposes an application-specific readiness marker', async () => {
+  const baseUrl = await startServer();
+  const response = await fetch(`${baseUrl}/__oc-lipsync/ready`);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'text/plain; charset=utf-8');
+  assert.equal(await response.text(), 'OC_LIPSYNC_READY');
+});
+
 test('rejects malformed streamed prefixes and metadata', async () => {
   const baseUrl = await startServer();
   const malformedBodies = [

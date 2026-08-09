@@ -16,6 +16,8 @@ const DEFAULT_PUBLIC_ROOT = await realpath(path.join(PROJECT_ROOT, 'public'));
 const MISSING_AUDIO_ERROR = '请先选择口播音频';
 const UNSUPPORTED_AUDIO_ERROR = '暂不支持该音频，请换用 MP3、WAV 或 M4A';
 const INVALID_SETTINGS_ERROR = '导出参数无效';
+const READY_PATH = '/__oc-lipsync/ready';
+const READY_MARKER = 'OC_LIPSYNC_READY';
 
 const contentTypes = new Map([
   ['.css', 'text/css; charset=utf-8'],
@@ -297,6 +299,16 @@ export function createAppServer({
 } = {}) {
   return createServer((request, response) => {
     const pathname = (request.url || '/').split(/[?#]/, 1)[0];
+    if (pathname === READY_PATH) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        response.setHeader('Allow', 'GET, HEAD');
+        respondText(response, 405, 'Method Not Allowed');
+        return;
+      }
+      response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+      response.end(request.method === 'HEAD' ? undefined : READY_MARKER);
+      return;
+    }
     if (pathname === '/api/export') {
       if (request.method !== 'POST') {
         response.setHeader('Allow', 'POST');

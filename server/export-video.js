@@ -4,9 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
+import { resolveExecutable } from './resolve-executable.js';
+
 const execFileAsync = promisify(execFile);
-const FFMPEG_PATH = '/opt/homebrew/bin/ffmpeg';
-const FFPROBE_PATH = '/opt/homebrew/bin/ffprobe';
+const FFMPEG_PATH = await resolveExecutable('ffmpeg');
+const FFPROBE_PATH = await resolveExecutable('ffprobe');
 
 export class ExportError extends Error {
   constructor(cause) {
