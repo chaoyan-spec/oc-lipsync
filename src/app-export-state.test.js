@@ -42,11 +42,12 @@ test('exposes the drop zone as inert and aria-disabled while exporting', async (
   assert.equal(classes.has('is-disabled'), false);
 });
 
-test('removes canvas scale and labels the compact Jianying MOV export', async () => {
+test('removes canvas scale and labels the auto-fit Jianying MOV export', async () => {
   const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
 
   assert.doesNotMatch(html, /id="character-scale"/);
-  assert.match(html, /320 × 366/);
+  assert.doesNotMatch(html, /320 × 366/);
+  assert.match(html, /自动适应 OC · 剪映透明 MOV/);
   assert.match(html, /导出剪映透明 MOV/);
 });
 
