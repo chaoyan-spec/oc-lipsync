@@ -7,8 +7,8 @@ import {
 import {
   buildMouthTimeline,
   calculateSpeechThreshold,
-  mouthAtTime,
 } from './lib/lipsync.js';
+import { createMouthPreview } from './lib/playback-mouth.js';
 import { createInitialUiState, isSupportedAudio } from './lib/ui-state.js';
 
 const CLOSED_MOUTH = '/oc-mouth-closed.png';
@@ -71,6 +71,12 @@ function setMouth(mouthState) {
   elements.character.alt = `${isOpen ? '张嘴' : '闭嘴'}状态的 OC`;
 }
 
+const mouthPreview = createMouthPreview({
+  audio: elements.audio,
+  getCues: () => state.cues,
+  render: setMouth,
+});
+
 function rebuildTimeline() {
   if (state.energies.length === 0) {
     state.cues = [];
@@ -97,10 +103,11 @@ function rebuildTimeline() {
   } else if (state.error === QUIET_AUDIO_ERROR) {
     showError();
   }
-  setMouth(mouthAtTime(state.cues, elements.audio.currentTime));
+  mouthPreview.sync();
 }
 
 function resetTransport() {
+  mouthPreview.stop();
   elements.audio.pause();
   elements.audio.removeAttribute('src');
   elements.audio.load();
@@ -113,7 +120,6 @@ function resetTransport() {
   elements.progress.value = '0';
   elements.currentTime.value = '00:00';
   elements.duration.textContent = '00:00';
-  setMouth('closed');
 }
 
 async function loadAudio(file) {
@@ -216,24 +222,26 @@ elements.playButton.addEventListener('click', async () => {
 
 elements.audio.addEventListener('play', () => {
   elements.playButton.textContent = '暂停';
+  mouthPreview.start();
 });
 
 elements.audio.addEventListener('pause', () => {
   elements.playButton.textContent = '播放';
+  mouthPreview.stop();
 });
 
 elements.audio.addEventListener('timeupdate', () => {
   const duration = elements.audio.duration;
   elements.currentTime.value = formatTime(elements.audio.currentTime);
   elements.progress.value = String(duration ? (elements.audio.currentTime / duration) * 1000 : 0);
-  setMouth(mouthAtTime(state.cues, elements.audio.currentTime));
 });
 
-elements.audio.addEventListener('ended', () => setMouth('closed'));
+elements.audio.addEventListener('ended', () => mouthPreview.stop());
 
 elements.progress.addEventListener('input', () => {
   if (!elements.audio.duration) return;
   elements.audio.currentTime = (Number(elements.progress.value) / 1000) * elements.audio.duration;
+  mouthPreview.sync();
 });
 
 elements.sensitivity.addEventListener('input', () => {

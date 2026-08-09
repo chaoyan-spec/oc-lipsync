@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node server/static-server.js",
-    "build": "node --check public/app.js && node --check public/lib/audio.js && node --check public/lib/export-client.js && node --check public/lib/lipsync.js && node --check public/lib/request-envelope.js && node --check public/lib/ui-state.js && node --check server/export-video.js && node --check server/index.js && node --check server/resolve-executable.js && node --check server/static-server.js",
+    "build": "node --check public/app.js && node --check public/lib/audio.js && node --check public/lib/export-client.js && node --check public/lib/lipsync.js && node --check public/lib/playback-mouth.js && node --check public/lib/request-envelope.js && node --check public/lib/ui-state.js && node --check server/export-video.js && node --check server/index.js && node --check server/resolve-executable.js && node --check server/static-server.js",
     "start": "node server/static-server.js",
     "test": "node --test"
   }
