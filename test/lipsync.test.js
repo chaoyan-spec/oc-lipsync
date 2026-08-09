@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildMouthTimeline,
+  buildTalkingTimeline,
   calculateSpeechThreshold,
+  frameAtTime,
   mouthAtTime,
 } from '../public/lib/lipsync.js';
 
@@ -107,4 +109,85 @@ describe('buildMouthTimeline', () => {
 it('uses a closed final boundary', () => {
   const cues = [{ start: 0, end: 0.2, state: 'open' }];
   assert.equal(mouthAtTime(cues, 0.2), 'closed');
+});
+
+describe('buildTalkingTimeline', () => {
+  it('keeps silence on the closed sprite frame', () => {
+    assert.deepEqual(buildTalkingTimeline([0, 0, 0], {
+      frameSeconds: 0.1,
+      threshold: 0.2,
+      minOpenSeconds: 0.1,
+    }), [{ start: 0, end: 0.3, frame: 0 }]);
+  });
+
+  it('uses small, medium, and near-closed frames during speech', () => {
+    assert.deepEqual(buildTalkingTimeline([0, 0.3, 0.8, 0.3, 0.8, 0], {
+      frameSeconds: 0.1,
+      threshold: 0.2,
+      minOpenSeconds: 0.1,
+    }), [
+      { start: 0, end: 0.1, frame: 0 },
+      { start: 0.1, end: 0.2, frame: 1 },
+      { start: 0.2, end: 0.3, frame: 2 },
+      { start: 0.3, end: 0.4, frame: 3 },
+      { start: 0.4, end: 0.5, frame: 4 },
+      { start: 0.5, end: 0.6, frame: 0 },
+    ]);
+  });
+
+  it('holds each talking pose at the source animation rate during 30 fps analysis', () => {
+    const cues = buildTalkingTimeline(Array(12).fill(0.8), {
+      frameSeconds: 1 / 30,
+      threshold: 0.2,
+      minOpenSeconds: 0.12,
+    });
+
+    assert.equal(frameAtTime(cues, 0.03), 1);
+    assert.equal(frameAtTime(cues, 0.1), 1);
+    assert.equal(frameAtTime(cues, 0.14), 2);
+    assert.equal(frameAtTime(cues, 0.27), 3);
+  });
+
+  it('locks the selected mouth level for the complete pose hold', () => {
+    const cues = buildTalkingTimeline([
+      0.8, 0.3, 0.8, 0.3,
+      0.8, 0.3, 0.8, 0.3,
+    ], {
+      frameSeconds: 1 / 30,
+      threshold: 0.2,
+      minOpenSeconds: 0.12,
+    });
+
+    assert.equal(frameAtTime(cues, 0.14), 2);
+    assert.equal(frameAtTime(cues, 0.17), 2);
+    assert.equal(frameAtTime(cues, 0.21), 2);
+    assert.equal(frameAtTime(cues, 0.24), 2);
+  });
+
+  it('inserts the supplied blink frame without stopping speech cadence', () => {
+    const cues = buildTalkingTimeline(Array(7).fill(0.5), {
+      frameSeconds: 0.1,
+      threshold: 0.2,
+      minOpenSeconds: 0.1,
+      blinkIntervalSeconds: 0.4,
+    });
+
+    assert.equal(frameAtTime(cues, 0.4), 5);
+    assert.equal(frameAtTime(cues, 0.5), 2);
+  });
+
+  it('handles a long decoded recording without spreading every sample as arguments', () => {
+    const cues = buildTalkingTimeline(Array(200_000).fill(0.5), {
+      frameSeconds: 1 / 30,
+      threshold: 0.2,
+      minOpenSeconds: 0.12,
+    });
+
+    assert.equal(cues[0].start, 0);
+    assert.equal(cues.at(-1).end, 6666.666667);
+  });
+});
+
+it('uses the closed sprite frame outside a talking timeline', () => {
+  assert.equal(frameAtTime([{ start: 0, end: 0.2, frame: 2 }], 0.2), 0);
 });

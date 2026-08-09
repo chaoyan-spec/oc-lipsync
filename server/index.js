@@ -26,8 +26,10 @@ const contentTypes = new Map([
   ['.css', 'text/css; charset=utf-8'],
   ['.html', 'text/html; charset=utf-8'],
   ['.js', 'text/javascript; charset=utf-8'],
+  ['.json', 'application/json; charset=utf-8'],
   ['.png', 'image/png'],
   ['.svg', 'image/svg+xml'],
+  ['.webp', 'image/webp'],
 ]);
 
 function respondText(response, statusCode, message) {
@@ -126,7 +128,9 @@ function hasValidCues(cues) {
       || !Number.isFinite(cue.end)
       || cue.start < 0
       || cue.end <= cue.start
-      || (cue.state !== 'open' && cue.state !== 'closed')
+      || !Number.isInteger(cue.frame)
+      || cue.frame < 0
+      || cue.frame > 7
     ) return false;
 
     if (index === 0) return Math.abs(cue.start) <= 1e-6;
@@ -262,8 +266,9 @@ async function handleExport(request, response, options) {
     const result = await options.exportVideo({
       audioPath,
       mouthCues: metadata.cues,
-      closedMouthPath: path.join(PROJECT_ROOT, 'public/oc-mouth-closed.png'),
-      openMouthPath: path.join(PROJECT_ROOT, 'public/oc-mouth-open.png'),
+      mouthFramePaths: Array.from({ length: 8 }, (_, frame) => (
+        path.join(PROJECT_ROOT, `public/papalu-talking/frames/${frame}.png`)
+      )),
       temporaryRoot,
     });
     const downloadName = `${safeDownloadBase(metadata.filename)}-OC口播.mov`;

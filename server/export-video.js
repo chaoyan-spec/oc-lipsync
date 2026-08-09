@@ -100,10 +100,12 @@ function quoteConcatPath(path) {
   return `'${path.replaceAll("'", "'\\''")}'`;
 }
 
-function createManifest(mouthCues, closedMouthPath, openMouthPath) {
-  const entries = mouthCues.map(({ start, end, state }) => ({
+function createManifest(mouthCues, closedMouthPath, openMouthPath, mouthFramePaths) {
+  const entries = mouthCues.map(({ start, end, state, frame }) => ({
     duration: end - start,
-    path: state === 'open' ? openMouthPath : closedMouthPath,
+    path: Number.isInteger(frame)
+      ? mouthFramePaths[frame]
+      : state === 'open' ? openMouthPath : closedMouthPath,
   }));
   const finalEntry = entries.at(-1);
 
@@ -163,26 +165,26 @@ async function verifyTransparentCorner(path) {
 /**
  * @param {object} input
  * @param {string} input.audioPath
- * @param {{start: number, end: number, state: 'open' | 'closed'}[]} input.mouthCues
- * @param {string} input.closedMouthPath
- * @param {string} input.openMouthPath
+ * @param {{start: number, end: number, state?: 'open' | 'closed', frame?: number}[]} input.mouthCues
+ * @param {string} [input.closedMouthPath]
+ * @param {string} [input.openMouthPath]
+ * @param {string[]} [input.mouthFramePaths]
  * @param {string} [input.temporaryRoot]
  */
 export async function exportCompactMov({
   audioPath,
   mouthCues,
   closedMouthPath,
+  mouthFramePaths,
   openMouthPath,
   temporaryRoot = tmpdir(),
 }) {
   let exportDirectory;
 
   try {
-    const [closedBounds, openBounds] = await Promise.all([
-      detectImageBounds(closedMouthPath),
-      detectImageBounds(openMouthPath),
-    ]);
-    const bounds = mergeImageBounds(closedBounds, openBounds);
+    const imagePaths = mouthFramePaths ?? [closedMouthPath, openMouthPath];
+    const imageBounds = await Promise.all(imagePaths.map(detectImageBounds));
+    const bounds = imageBounds.slice(1).reduce(mergeImageBounds, imageBounds[0]);
     const dimensions = calculateAutoFitDimensions(bounds);
     const filter = [
       `crop=${bounds.width}:${bounds.height}:${bounds.x}:${bounds.y}`,
@@ -199,7 +201,7 @@ export async function exportCompactMov({
 
     await writeFile(
       manifestPath,
-      createManifest(mouthCues, closedMouthPath, openMouthPath),
+      createManifest(mouthCues, closedMouthPath, openMouthPath, mouthFramePaths),
       'utf8',
     );
 

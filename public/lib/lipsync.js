@@ -46,6 +46,29 @@ function percentile(sorted, fraction) {
   return sorted[Math.floor((sorted.length - 1) * fraction)];
 }
 
+function buildSpeechStates(energies, {
+  frameSeconds,
+  minOpenSeconds,
+  threshold,
+}) {
+  const classifiedStates = energies.map((energy) => energy > threshold);
+  const speechStates = classifiedStates.map(() => false);
+  const openFrames = Math.max(1, Math.ceil(minOpenSeconds / frameSeconds));
+
+  for (let index = 0; index < classifiedStates.length; index += 1) {
+    if (!classifiedStates[index]) continue;
+
+    const start = index;
+    while (index < classifiedStates.length && classifiedStates[index]) index += 1;
+    const speechEnd = Math.max(index, Math.min(speechStates.length, start + openFrames));
+    for (let speech = start; speech < speechEnd; speech += 1) {
+      speechStates[speech] = true;
+    }
+  }
+
+  return { openFrames, speechStates };
+}
+
 /**
  * @param {number[]} energies
  * @param {number} sensitivity
@@ -77,30 +100,7 @@ export function buildMouthTimeline(energies, options) {
     minClosedSeconds = 0,
     threshold,
   } = options;
-  const classifiedStates = energies.map((energy) => (
-    energy > threshold ? 'open' : 'closed'
-  ));
-  const speechStates = classifiedStates.map(() => false);
-  const openFrames = Math.max(1, Math.ceil(minOpenSeconds / frameSeconds));
-
-  for (let index = 0; index < classifiedStates.length; index += 1) {
-    if (classifiedStates[index] !== 'open') continue;
-
-    const start = index;
-    while (
-      index < classifiedStates.length
-      && classifiedStates[index] === 'open'
-    ) index += 1;
-
-    const minimumEnd = Math.min(
-      speechStates.length,
-      start + openFrames,
-    );
-    const speechEnd = Math.max(index, minimumEnd);
-    for (let speech = start; speech < speechEnd; speech += 1) {
-      speechStates[speech] = true;
-    }
-  }
+  const { openFrames, speechStates } = buildSpeechStates(energies, options);
 
   const closedFrames = Math.ceil(minClosedSeconds / frameSeconds);
   const cycleFrames = openFrames + closedFrames;
@@ -141,4 +141,66 @@ export function buildMouthTimeline(energies, options) {
  */
 export function mouthAtTime(cues, seconds) {
   return cues.find(({ start, end }) => seconds >= start && seconds < end)?.state ?? 'closed';
+}
+
+/**
+ * Builds frame cues for the eight-frame Memory Garden talking sprite.
+ * Frames: 0 closed, 1/6 small, 2/4 medium, 3 near-closed, 5 blink.
+ */
+export function buildTalkingTimeline(energies, options) {
+  validateOptions(options);
+  const {
+    blinkIntervalSeconds = 3.2,
+    frameSeconds,
+    threshold,
+  } = options;
+  const { speechStates } = buildSpeechStates(energies, options);
+  if (speechStates.length === 0) return [];
+
+  const peak = energies.reduce((highest, energy) => (
+    Number.isFinite(energy) ? Math.max(highest, energy) : highest
+  ), threshold);
+  const strongThreshold = threshold + (peak - threshold) * 0.45;
+  const blinkEveryFrames = Math.max(1, Math.round(blinkIntervalSeconds / frameSeconds));
+  const poseHoldFrames = Math.max(1, Math.round((1 / 8) / frameSeconds));
+  let heldFrame = 1;
+  let speechFrame = 0;
+  const frames = speechStates.map((isSpeech, index) => {
+    if (!isSpeech) {
+      heldFrame = 1;
+      speechFrame = 0;
+      return 0;
+    }
+    if (speechFrame % poseHoldFrames === 0) {
+      const strong = energies[index] >= strongThreshold;
+      const pose = Math.floor(speechFrame / poseHoldFrames) % 4;
+      heldFrame = [1, strong ? 2 : 6, 3, strong ? 4 : 1][pose];
+    }
+
+    const blinkPhase = index % blinkEveryFrames;
+    if (index >= blinkEveryFrames && blinkPhase < poseHoldFrames) {
+      speechFrame += 1;
+      return 5;
+    }
+
+    speechFrame += 1;
+    return heldFrame;
+  });
+
+  const cues = [];
+  let start = 0;
+  for (let index = 1; index <= frames.length; index += 1) {
+    if (index < frames.length && frames[index] === frames[start]) continue;
+    cues.push({
+      start: roundTime(start * frameSeconds),
+      end: roundTime(index * frameSeconds),
+      frame: frames[start],
+    });
+    start = index;
+  }
+  return cues;
+}
+
+export function frameAtTime(cues, seconds) {
+  return cues.find(({ start, end }) => seconds >= start && seconds < end)?.frame ?? 0;
 }

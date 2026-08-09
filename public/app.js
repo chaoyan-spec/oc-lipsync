@@ -5,14 +5,12 @@ import {
   updateDropZoneBusy,
 } from './lib/export-client.js';
 import {
-  buildMouthTimeline,
+  buildTalkingTimeline,
   calculateSpeechThreshold,
 } from './lib/lipsync.js';
 import { createMouthPreview } from './lib/playback-mouth.js';
 import { createInitialUiState, isSupportedAudio } from './lib/ui-state.js';
 
-const CLOSED_MOUTH = '/oc-mouth-closed.png';
-const OPEN_MOUTH = '/oc-mouth-open.png';
 const FRAME_SECONDS = 1 / 30;
 const DECODE_ERROR = '暂不支持该音频，请换用 MP3、WAV 或 M4A';
 const QUIET_AUDIO_ERROR = '音频声音太轻，低于可识别阈值，暂时无法导出';
@@ -60,13 +58,10 @@ function showError(message = '') {
   elements.error.hidden = !message;
 }
 
-function setMouth(mouthState) {
-  const isOpen = mouthState === 'open';
-  const nextSource = isOpen ? OPEN_MOUTH : CLOSED_MOUTH;
-  if (!elements.character.src.endsWith(nextSource)) {
-    elements.character.src = nextSource;
-  }
-  elements.character.alt = `${isOpen ? '张嘴' : '闭嘴'}状态的 OC`;
+function setMouth(frame) {
+  const safeFrame = Number.isInteger(frame) && frame >= 0 && frame <= 7 ? frame : 0;
+  elements.character.style.backgroundPosition = `${safeFrame * (100 / 7)}% 0`;
+  elements.character.setAttribute('aria-label', `${safeFrame === 0 ? '闭嘴' : '说话'}状态的 OC`);
 }
 
 const mouthPreview = createMouthPreview({
@@ -80,23 +75,20 @@ function rebuildTimeline() {
     state.cues = [];
     state.canExport = false;
     elements.exportButton.disabled = true;
-    setMouth('closed');
+    setMouth(0);
     return;
   }
 
   const threshold = calculateSpeechThreshold(state.energies, state.sensitivity);
-  state.cues = buildMouthTimeline(state.energies, {
+  state.cues = buildTalkingTimeline(state.energies, {
     frameSeconds: FRAME_SECONDS,
     threshold,
     minOpenSeconds: state.minOpenSeconds,
-    minClosedSeconds: 2 * FRAME_SECONDS,
   });
-  const hasOpenMouthCue = state.cues.some(({ state: mouthState }) => (
-    mouthState === 'open'
-  ));
-  state.canExport = Boolean(state.file) && hasOpenMouthCue;
+  const hasTalkingCue = state.cues.some(({ frame }) => frame > 0);
+  state.canExport = Boolean(state.file) && hasTalkingCue;
   elements.exportButton.disabled = !state.canExport;
-  if (state.file && !hasOpenMouthCue) {
+  if (state.file && !hasTalkingCue) {
     showError(QUIET_AUDIO_ERROR);
   } else if (state.error === QUIET_AUDIO_ERROR) {
     showError();

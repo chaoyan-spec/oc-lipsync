@@ -43,3 +43,22 @@ test('stops scheduling and closes the mouth when playback stops', () => {
   assert.deepEqual(cancelled, [7]);
   assert.equal(rendered.at(-1), 'closed');
 });
+
+test('renders sprite frame numbers from the talking timeline', () => {
+  const rendered = [];
+  const audio = { currentTime: 0.15, paused: true, ended: false };
+  const preview = createMouthPreview({
+    audio,
+    getCues: () => [
+      { start: 0, end: 0.1, frame: 1 },
+      { start: 0.1, end: 0.2, frame: 4 },
+    ],
+    render: (frame) => rendered.push(frame),
+    requestFrame: () => 1,
+    cancelFrame: () => {},
+  });
+
+  preview.sync();
+  preview.stop();
+  assert.deepEqual(rendered, [4, 0]);
+});

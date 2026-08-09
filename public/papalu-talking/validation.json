@@ -1,0 +1,91 @@
+{
+  "passed": true,
+  "petId": "papalu",
+  "actionId": "talking",
+  "width": 1536,
+  "height": 208,
+  "frameWidth": 192,
+  "frameHeight": 208,
+  "frameCount": 8,
+  "rows": 1,
+  "columns": 8,
+  "fps": 8,
+  "loop": true,
+  "durationMs": 1000,
+  "transparentBackgroundOk": true,
+  "nonEmptyFrames": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "adjacentFramesDiffer": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "seamlessLoopCheck": {
+    "passed": true,
+    "frame8MatchesFrame1": true
+  },
+  "visualProportionCheck": {
+    "passed": true,
+    "targetVisibleHeight": 190,
+    "baselineYs": [
+      203,
+      203,
+      203,
+      203,
+      203,
+      203,
+      203,
+      203
+    ],
+    "maxBaselineDeviationPx": 0,
+    "centerXs": [
+      96.0,
+      96.0,
+      96.0,
+      96.0,
+      96.0,
+      96.0,
+      96.0,
+      96.0
+    ],
+    "maxCenterDeviationPx": 0.0,
+    "paddingOk": true
+  },
+  "identityLockCheck": {
+    "passed": true,
+    "asymmetricEyesPreserved": true,
+    "leftEye": "black with original white highlight",
+    "rightEye": "purple with original white region",
+    "blinkFrame": 6,
+    "blinkRetainsAsymmetricLidColors": true,
+    "clothingAndPatternUnchanged": true,
+    "sourceArtworkRedrawn": false
+  },
+  "mouthMotionCheck": {
+    "passed": true,
+    "states": [
+      "closed",
+      "small",
+      "medium",
+      "near-closed",
+      "medium",
+      "small-blink",
+      "small",
+      "closed"
+    ],
+    "notes": "Mouth changes remain small and use no teeth or exaggerated tongue shapes."
+  },
+  "forbiddenPropsOrEffectsPresent": false
+}

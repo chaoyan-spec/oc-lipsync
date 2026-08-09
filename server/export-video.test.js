@@ -194,6 +194,40 @@ it('exports an auto-fit transparent Animation MOV with AAC audio', { timeout: 12
   assert.equal(corner[3], 0, 'top-left corner must be transparent');
 });
 
+it('exports numbered sprite frames on the same transparent MOV timeline', { timeout: 120_000 }, async () => {
+  temporaryRoot = await mkdtemp(join(tmpdir(), 'oc-lipsync-sprite-export-test-'));
+  const mouthFramePaths = Array.from({ length: 8 }, (_, frame) => (
+    join(projectRoot, `public/papalu-talking/frames/${frame}.png`)
+  ));
+  const ffmpegPath = await resolveExecutable('ffmpeg');
+
+  const result = await exportCompactMov({
+    audioPath: join(projectRoot, 'test/fixtures/tone-silence.wav'),
+    mouthFramePaths,
+    mouthCues: [
+      { start: 0, end: 0.4, frame: 0 },
+      { start: 0.4, end: 0.8, frame: 2 },
+      { start: 0.8, end: 1.2, frame: 3 },
+      { start: 1.2, end: 1.6, frame: 5 },
+      { start: 1.6, end: 2, frame: 0 },
+    ],
+    temporaryRoot,
+  });
+
+  assert.deepEqual(
+    { width: result.width, height: result.height, fps: result.fps },
+    { width: 182, height: 206, fps: 15 },
+  );
+
+  const decodedFrames = await Promise.all([0.2, 0.6, 1, 1.4].map((time) => (
+    decodeRgbaFrame(ffmpegPath, result.path, time, result.width, result.height)
+  )));
+  for (let index = 1; index < decodedFrames.length; index += 1) {
+    assert.equal(decodedFrames[index].equals(decodedFrames[index - 1]), false);
+  }
+  assert.equal(decodedFrames[0][3], 0, 'top-left corner must stay transparent');
+});
+
 it('encodes different mouth bounds on one stable union-derived canvas', { timeout: 120_000 }, async () => {
   temporaryRoot = await mkdtemp(join(tmpdir(), 'oc-lipsync-union-export-test-'));
   transparentSourceDirectory = await mkdtemp(join(tmpdir(), 'oc-lipsync-union-source-test-'));

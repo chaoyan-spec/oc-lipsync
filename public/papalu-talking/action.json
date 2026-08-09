@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "extensionType": "memory-garden-action",
+  "petId": "papalu",
+  "actionId": "talking",
+  "displayName": "PAPAlu Talking",
+  "returnTo": "idle",
+  "spritesheet": {
+    "path": "spritesheet.webp",
+    "layout": "horizontal",
+    "frameWidth": 192,
+    "frameHeight": 208,
+    "frameCount": 8,
+    "rows": 1,
+    "columns": 8,
+    "background": "transparent"
+  },
+  "animation": {
+    "loop": true,
+    "fps": 8,
+    "durationMs": 1000
+  },
+  "anchors": {
+    "visualCenterX": 96,
+    "overallBottomY": 203
+  }
+}

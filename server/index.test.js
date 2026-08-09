@@ -49,8 +49,8 @@ function rawEnvelope(metadata, audioBytes = new Uint8Array()) {
 const validMetadata = {
   filename: 'sample.wav',
   cues: [
-    { start: 0, end: 0.5, state: 'closed' },
-    { start: 0.5, end: 1, state: 'open' },
+    { start: 0, end: 0.5, frame: 0 },
+    { start: 0.5, end: 1, frame: 2 },
   ],
 };
 
@@ -215,6 +215,10 @@ test('rejects invalid or non-contiguous mouth cues', async () => {
   const invalidCueSets = [
     [],
     [{ start: 0, end: 0.5, state: 'talking' }],
+    [{ start: 0, end: 0.5, state: 'closed' }],
+    [{ start: 0, end: 0.5, frame: -1 }],
+    [{ start: 0, end: 0.5, frame: 1.5 }],
+    [{ start: 0, end: 0.5, frame: 8 }],
     [
       { start: 0, end: 0.4, state: 'closed' },
       { start: 0.5, end: 1, state: 'open' },
@@ -248,7 +252,15 @@ test('returns a MOV attachment for a valid request and cleans temporary files', 
   const baseUrl = await startServer({ exportVideo });
   const fixtureAudio = await readFile(new URL('../test/fixtures/tone-silence.wav', import.meta.url));
 
-  const specialMetadata = { ...validMetadata, filename: "a'b(c)*.wav" };
+  const talkingCues = [
+    { start: 0, end: 0.5, frame: 0 },
+    { start: 0.5, end: 1, frame: 2 },
+  ];
+  const specialMetadata = {
+    ...validMetadata,
+    filename: "a'b(c)*.wav",
+    cues: talkingCues,
+  };
   const response = await post(baseUrl, encodeExportRequest(specialMetadata, fixtureAudio));
 
   assert.equal(response.status, 200);
@@ -259,7 +271,9 @@ test('returns a MOV attachment for a valid request and cleans temporary files', 
   );
   assert.deepEqual(new Uint8Array(await response.arrayBuffer()), Uint8Array.from([26, 69, 223, 163]));
   assert.equal('characterScale' in receivedInput, false);
-  assert.deepEqual(receivedInput.mouthCues, validMetadata.cues);
+  assert.deepEqual(receivedInput.mouthCues, talkingCues);
+  assert.equal(receivedInput.mouthFramePaths.length, 8);
+  assert.match(receivedInput.mouthFramePaths[0], /papalu-talking\/frames\/0\.png$/);
   assert.deepEqual(receivedAudio, fixtureAudio);
   await waitForRemoval(temporaryRoot);
 });
@@ -365,9 +379,12 @@ test('rejects a request body over the configured limit before exporting', async 
 test('keeps static traversal protections while serving public files', async () => {
   const baseUrl = await startServer();
   const indexResponse = await fetch(`${baseUrl}/`);
+  const spriteResponse = await fetch(`${baseUrl}/papalu-talking/spritesheet.webp`);
   const traversalResponse = await fetch(`${baseUrl}/%2e%2e%5cpackage.json`);
 
   assert.equal(indexResponse.status, 200);
   assert.match(await indexResponse.text(), /OC 口播机/);
+  assert.equal(spriteResponse.status, 200);
+  assert.equal(spriteResponse.headers.get('content-type'), 'image/webp');
   assert.equal(traversalResponse.status, 403);
 });

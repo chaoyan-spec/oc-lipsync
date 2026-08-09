@@ -91,7 +91,12 @@ h1 {
   bottom: 0;
   left: 50%;
   width: 72%;
+  aspect-ratio: 192 / 208;
   max-width: none;
+  background-image: url('/papalu-talking/spritesheet.webp');
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  background-size: 800% 100%;
   transform: translateX(-50%);
   transform-origin: bottom center;
   user-select: none;

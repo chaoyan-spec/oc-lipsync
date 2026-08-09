@@ -1,4 +1,4 @@
-import { mouthAtTime } from './lipsync.js';
+import { frameAtTime, mouthAtTime } from './lipsync.js';
 
 export function createMouthPreview({
   audio,
@@ -9,9 +9,16 @@ export function createMouthPreview({
 }) {
   let frameId = null;
 
+  const currentValue = () => {
+    const cues = getCues();
+    return cues.some(({ frame }) => Number.isInteger(frame))
+      ? frameAtTime(cues, audio.currentTime)
+      : mouthAtTime(cues, audio.currentTime);
+  };
+
   const draw = () => {
     frameId = null;
-    render(mouthAtTime(getCues(), audio.currentTime));
+    render(currentValue());
     if (!audio.paused && !audio.ended) frameId = requestFrame(draw);
   };
 
@@ -22,10 +29,11 @@ export function createMouthPreview({
     stop() {
       if (frameId !== null) cancelFrame(frameId);
       frameId = null;
-      render('closed');
+      const usesFrames = getCues().some(({ frame }) => Number.isInteger(frame));
+      render(usesFrames ? 0 : 'closed');
     },
     sync() {
-      render(mouthAtTime(getCues(), audio.currentTime));
+      render(currentValue());
     },
   };
 }
