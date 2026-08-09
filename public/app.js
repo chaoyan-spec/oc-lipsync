@@ -4,7 +4,11 @@ import {
   createFileSelectionHandler,
   updateDropZoneBusy,
 } from './lib/export-client.js';
-import { buildMouthTimeline, mouthAtTime } from './lib/lipsync.js';
+import {
+  buildMouthTimeline,
+  calculateSpeechThreshold,
+  mouthAtTime,
+} from './lib/lipsync.js';
 import { createInitialUiState, isSupportedAudio } from './lib/ui-state.js';
 
 const CLOSED_MOUTH = '/oc-mouth-closed.png';
@@ -76,12 +80,12 @@ function rebuildTimeline() {
     return;
   }
 
-  const peak = state.energies.reduce((highest, energy) => Math.max(highest, energy), 0);
-  const threshold = Math.max(0.002, peak * (1 - state.sensitivity / 100));
+  const threshold = calculateSpeechThreshold(state.energies, state.sensitivity);
   state.cues = buildMouthTimeline(state.energies, {
     frameSeconds: FRAME_SECONDS,
     threshold,
     minOpenSeconds: state.minOpenSeconds,
+    minClosedSeconds: 2 * FRAME_SECONDS,
   });
   const hasOpenMouthCue = state.cues.some(({ state: mouthState }) => (
     mouthState === 'open'
