@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, test } from 'node:test';
@@ -61,6 +62,23 @@ async function post(baseUrl, body) {
   });
 }
 
+async function getWithHost(baseUrl, pathname, host) {
+  return new Promise((resolve, reject) => {
+    const request = httpRequest(new URL(pathname, baseUrl), {
+      headers: { Host: host },
+    }, (response) => {
+      const chunks = [];
+      response.on('data', (chunk) => chunks.push(chunk));
+      response.on('end', () => resolve({
+        status: response.statusCode,
+        body: Buffer.concat(chunks).toString('utf8'),
+      }));
+    });
+    request.once('error', reject);
+    request.end();
+  });
+}
+
 async function waitForRemoval(targetPath) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     try {
@@ -89,6 +107,48 @@ test('exposes an application-specific readiness marker', async () => {
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('content-type'), 'text/plain; charset=utf-8');
   assert.equal(await response.text(), 'OC_LIPSYNC_READY');
+});
+
+test('rejects an attacker Host before serving any route', async () => {
+  const baseUrl = await startServer();
+  const response = await getWithHost(baseUrl, '/__oc-lipsync/ready', 'attacker.example');
+
+  assert.equal(response.status, 403);
+  assert.equal(response.body, 'Forbidden');
+});
+
+test('rejects a foreign export Origin before reading or exporting', async () => {
+  let exportCount = 0;
+  const baseUrl = await startServer({
+    exportVideo: async () => { exportCount += 1; },
+  });
+  const response = await fetch(`${baseUrl}/api/export`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      Origin: 'https://attacker.example',
+    },
+    body: Uint8Array.from([0, 0, 0]),
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(await response.text(), 'Forbidden');
+  assert.equal(exportCount, 0);
+});
+
+test('accepts the exact loopback Origin for export requests', async () => {
+  const baseUrl = await startServer();
+  const response = await fetch(`${baseUrl}/api/export`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      Origin: baseUrl,
+    },
+    body: rawEnvelope(validMetadata),
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: MISSING_AUDIO_ERROR });
 });
 
 test('rejects malformed streamed prefixes and metadata', async () => {

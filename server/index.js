@@ -306,6 +306,13 @@ export function createAppServer({
   temporaryRoot = tmpdir(),
 } = {}) {
   return createServer((request, response) => {
+    const authority = `127.0.0.1:${request.socket.localPort}`;
+    if (request.headers.host !== authority) {
+      request.resume();
+      respondText(response, 403, 'Forbidden');
+      return;
+    }
+
     const pathname = (request.url || '/').split(/[?#]/, 1)[0];
     if (pathname === READY_PATH) {
       if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -318,6 +325,14 @@ export function createAppServer({
       return;
     }
     if (pathname === '/api/export') {
+      if (
+        request.headers.origin !== undefined
+        && request.headers.origin !== `http://${authority}`
+      ) {
+        request.resume();
+        respondText(response, 403, 'Forbidden');
+        return;
+      }
       if (request.method !== 'POST') {
         response.setHeader('Allow', 'POST');
         respondText(response, 405, 'Method Not Allowed');

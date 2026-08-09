@@ -14,7 +14,8 @@
 - Require the open- and closed-mouth PNGs to have the same source canvas dimensions.
 - Use the union of both visible bounds so changing mouth state never changes framing.
 - Scale visible content down only, with a maximum content side of 304px; never enlarge a smaller OC.
-- Round calculated content dimensions down to the nearest positive even number and add 8px transparent padding on every side, keeping the final longest side at or below 320px.
+- For downscaled content, round each calculated dimension to the nearest positive even number. For unscaled small content, floor each dimension to a positive even number so it is never enlarged. Add 8px transparent padding on every side, keeping the final longest side at or below 320px.
+- The current 622×711 bounds downscale to 266×304; adding 8px on every side produces exactly 282×320.
 - Preserve MOV, `qtrle`, `argb`, 15fps, one AAC 96kbps stream, filename `<audio-base>-OC口播.mov`, and response type `video/quicktime`.
 - Preserve MP3/WAV/M4A input, cue timing, preview behavior, streamed upload, temporary-file cleanup, loopback-only server, and persistent visible save link.
 - Fail export when either image is unreadable or fully transparent, or when source canvas dimensions differ.
@@ -99,8 +100,12 @@ Add these constants and pure helpers near the executable constants in `server/ex
 const MAX_CONTENT_SIDE = 304;
 const OUTPUT_PADDING = 8;
 
-function floorEven(value) {
+function floorPositiveEven(value) {
   return Math.max(2, Math.floor(value / 2) * 2);
+}
+
+function roundPositiveEven(value) {
+  return Math.max(2, Math.round(value / 2) * 2);
 }
 
 export function mergeImageBounds(first, second) {
@@ -123,19 +128,21 @@ export function mergeImageBounds(first, second) {
   };
 }
 
-export function calculateAutoFitDimensions(
-  bounds,
-  { maxContentSide = MAX_CONTENT_SIDE, padding = OUTPUT_PADDING } = {},
-) {
-  const scale = Math.min(1, maxContentSide / Math.max(bounds.width, bounds.height));
-  const contentWidth = floorEven(bounds.width * scale);
-  const contentHeight = floorEven(bounds.height * scale);
+export function calculateAutoFitDimensions(bounds) {
+  if (bounds.width < 2 || bounds.height < 2) {
+    throw new Error('Mouth image bounds must be at least 2 pixels wide and high.');
+  }
+
+  const scale = Math.min(1, MAX_CONTENT_SIDE / Math.max(bounds.width, bounds.height));
+  const roundToEven = scale < 1 ? roundPositiveEven : floorPositiveEven;
+  const contentWidth = roundToEven(bounds.width * scale);
+  const contentHeight = roundToEven(bounds.height * scale);
   return {
     contentWidth,
     contentHeight,
-    width: contentWidth + padding * 2,
-    height: contentHeight + padding * 2,
-    padding,
+    width: contentWidth + OUTPUT_PADDING * 2,
+    height: contentHeight + OUTPUT_PADDING * 2,
+    padding: OUTPUT_PADDING,
   };
 }
 ```

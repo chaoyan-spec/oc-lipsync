@@ -20,6 +20,39 @@ const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 let temporaryRoot;
 let transparentSourceDirectory;
 
+async function decodeRgbaFrame(ffmpegPath, videoPath, time, width, height) {
+  const { stdout } = await execFileAsync(ffmpegPath, [
+    '-hide_banner', '-loglevel', 'error',
+    '-ss', String(time),
+    '-i', videoPath,
+    '-frames:v', '1',
+    '-f', 'rawvideo',
+    '-pix_fmt', 'rgba',
+    'pipe:1',
+  ], { encoding: 'buffer', maxBuffer: width * height * 4 + 1024 });
+  assert.equal(stdout.length, width * height * 4);
+  return stdout;
+}
+
+function findAlphaBounds(rgba, width, height) {
+  let left = width;
+  let top = height;
+  let right = -1;
+  let bottom = -1;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (rgba[(y * width + x) * 4 + 3] === 0) continue;
+      left = Math.min(left, x);
+      top = Math.min(top, y);
+      right = Math.max(right, x);
+      bottom = Math.max(bottom, y);
+    }
+  }
+
+  return { x: left, y: top, width: right - left + 1, height: bottom - top + 1 };
+}
+
 afterEach(async () => {
   if (temporaryRoot) await rm(temporaryRoot, { recursive: true, force: true });
   if (transparentSourceDirectory) {
@@ -159,6 +192,71 @@ it('exports an auto-fit transparent Animation MOV with AAC audio', { timeout: 12
     'pipe:1',
   ], { encoding: 'buffer' });
   assert.equal(corner[3], 0, 'top-left corner must be transparent');
+});
+
+it('encodes different mouth bounds on one stable union-derived canvas', { timeout: 120_000 }, async () => {
+  temporaryRoot = await mkdtemp(join(tmpdir(), 'oc-lipsync-union-export-test-'));
+  transparentSourceDirectory = await mkdtemp(join(tmpdir(), 'oc-lipsync-union-source-test-'));
+  const ffmpegPath = await resolveExecutable('ffmpeg');
+  const closedMouthPath = join(transparentSourceDirectory, 'closed.png');
+  const openMouthPath = join(transparentSourceDirectory, 'open.png');
+
+  await Promise.all([
+    execFileAsync(ffmpegPath, [
+      '-hide_banner', '-loglevel', 'error', '-y',
+      '-f', 'lavfi', '-i',
+      'color=black@0.0:s=120x100,format=rgba,drawbox=x=20:y=20:w=40:h=40:color=red@1:t=fill:replace=1,drawbox=x=50:y=40:w=4:h=4:color=yellow@1:t=fill:replace=1',
+      '-frames:v', '1',
+      closedMouthPath,
+    ]),
+    execFileAsync(ffmpegPath, [
+      '-hide_banner', '-loglevel', 'error', '-y',
+      '-f', 'lavfi', '-i',
+      'color=black@0.0:s=120x100,format=rgba,drawbox=x=30:y=10:w=50:h=60:color=green@1:t=fill:replace=1,drawbox=x=50:y=40:w=4:h=4:color=yellow@1:t=fill:replace=1',
+      '-frames:v', '1',
+      openMouthPath,
+    ]),
+  ]);
+
+  assert.deepEqual(await detectImageBounds(closedMouthPath), {
+    x: 20, y: 20, width: 40, height: 40, canvasWidth: 120, canvasHeight: 100,
+  });
+  assert.deepEqual(await detectImageBounds(openMouthPath), {
+    x: 30, y: 10, width: 50, height: 60, canvasWidth: 120, canvasHeight: 100,
+  });
+
+  const result = await exportCompactMov({
+    audioPath: join(projectRoot, 'test/fixtures/tone-silence.wav'),
+    closedMouthPath,
+    openMouthPath,
+    mouthCues: [
+      { start: 0, end: 0.5, state: 'closed' },
+      { start: 0.5, end: 1, state: 'open' },
+      { start: 1, end: 1.5, state: 'closed' },
+      { start: 1.5, end: 2, state: 'open' },
+    ],
+    temporaryRoot,
+  });
+
+  assert.deepEqual(
+    { width: result.width, height: result.height },
+    { width: 76, height: 76 },
+  );
+
+  const [closedFrame, openFrame] = await Promise.all([
+    decodeRgbaFrame(ffmpegPath, result.path, 0.2, result.width, result.height),
+    decodeRgbaFrame(ffmpegPath, result.path, 0.7, result.width, result.height),
+  ]);
+  assert.deepEqual(findAlphaBounds(closedFrame, result.width, result.height), {
+    x: 8, y: 18, width: 40, height: 40,
+  });
+  assert.deepEqual(findAlphaBounds(openFrame, result.width, result.height), {
+    x: 18, y: 8, width: 50, height: 60,
+  });
+
+  const sharedMarkerOffset = (38 * result.width + 38) * 4;
+  assert.ok(closedFrame[sharedMarkerOffset] > 200 && closedFrame[sharedMarkerOffset + 1] > 200);
+  assert.ok(openFrame[sharedMarkerOffset] > 200 && openFrame[sharedMarkerOffset + 1] > 200);
 });
 
 it('rejects a fully transparent mouth image and cleans up the export directory', { timeout: 120_000 }, async () => {
