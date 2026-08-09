@@ -62,6 +62,30 @@ it('rounds odd small OC dimensions down instead of enlarging them', () => {
   );
 });
 
+it('rejects one-pixel-wide bounds instead of enlarging them', () => {
+  assert.throws(
+    () => calculateAutoFitDimensions({ width: 1, height: 20 }),
+    /at least 2 pixels/,
+  );
+});
+
+it('rejects one-pixel-high bounds instead of enlarging them', () => {
+  assert.throws(
+    () => calculateAutoFitDimensions({ width: 20, height: 1 }),
+    /at least 2 pixels/,
+  );
+});
+
+it('keeps auto-fit sizing constants private', () => {
+  assert.deepEqual(
+    calculateAutoFitDimensions(
+      { width: 622, height: 711 },
+      { maxContentSide: 100, padding: 0 },
+    ),
+    { contentWidth: 266, contentHeight: 304, width: 282, height: 320, padding: 8 },
+  );
+});
+
 it('detects the current OC alpha bounds instead of using fixed coordinates', async () => {
   assert.deepEqual(
     await detectImageBounds(join(projectRoot, 'public/oc-mouth-closed.png')),

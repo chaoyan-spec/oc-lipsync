@@ -40,20 +40,21 @@ export function mergeImageBounds(first, second) {
   };
 }
 
-export function calculateAutoFitDimensions(
-  bounds,
-  { maxContentSide = MAX_CONTENT_SIDE, padding = OUTPUT_PADDING } = {},
-) {
-  const scale = Math.min(1, maxContentSide / Math.max(bounds.width, bounds.height));
+export function calculateAutoFitDimensions(bounds) {
+  if (bounds.width < 2 || bounds.height < 2) {
+    throw new Error('Mouth image bounds must be at least 2 pixels wide and high.');
+  }
+
+  const scale = Math.min(1, MAX_CONTENT_SIDE / Math.max(bounds.width, bounds.height));
   const roundToEven = scale < 1 ? roundPositiveEven : floorPositiveEven;
   const contentWidth = roundToEven(bounds.width * scale);
   const contentHeight = roundToEven(bounds.height * scale);
   return {
     contentWidth,
     contentHeight,
-    width: contentWidth + padding * 2,
-    height: contentHeight + padding * 2,
-    padding,
+    width: contentWidth + OUTPUT_PADDING * 2,
+    height: contentHeight + OUTPUT_PADDING * 2,
+    padding: OUTPUT_PADDING,
   };
 }
 
