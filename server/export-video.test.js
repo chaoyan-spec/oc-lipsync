@@ -7,7 +7,12 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { afterEach, it } from 'node:test';
 
-import { exportCompactMov } from './export-video.js';
+import {
+  calculateAutoFitDimensions,
+  detectImageBounds,
+  exportCompactMov,
+  mergeImageBounds,
+} from './export-video.js';
 import { resolveExecutable } from './resolve-executable.js';
 
 const execFileAsync = promisify(execFile);
@@ -17,6 +22,51 @@ let temporaryRoot;
 afterEach(async () => {
   if (temporaryRoot) await rm(temporaryRoot, { recursive: true, force: true });
   temporaryRoot = undefined;
+});
+
+it('merges both mouth bounds and preserves their shared canvas', () => {
+  assert.deepEqual(
+    mergeImageBounds(
+      { x: 12, y: 20, width: 100, height: 180, canvasWidth: 500, canvasHeight: 500 },
+      { x: 8, y: 24, width: 120, height: 170, canvasWidth: 500, canvasHeight: 500 },
+    ),
+    { x: 8, y: 20, width: 120, height: 180, canvasWidth: 500, canvasHeight: 500 },
+  );
+});
+
+it('rejects mouth images with different source canvases', () => {
+  assert.throws(() => mergeImageBounds(
+    { x: 0, y: 0, width: 20, height: 20, canvasWidth: 100, canvasHeight: 100 },
+    { x: 0, y: 0, width: 20, height: 20, canvasWidth: 120, canvasHeight: 100 },
+  ), /same canvas dimensions/);
+});
+
+it('fits a portrait OC inside 304px and adds 8px padding', () => {
+  assert.deepEqual(
+    calculateAutoFitDimensions({ width: 622, height: 711 }),
+    { contentWidth: 266, contentHeight: 304, width: 282, height: 320, padding: 8 },
+  );
+});
+
+it('does not enlarge a smaller landscape OC', () => {
+  assert.deepEqual(
+    calculateAutoFitDimensions({ width: 200, height: 101 }),
+    { contentWidth: 200, contentHeight: 100, width: 216, height: 116, padding: 8 },
+  );
+});
+
+it('rounds odd small OC dimensions down instead of enlarging them', () => {
+  assert.deepEqual(
+    calculateAutoFitDimensions({ width: 201, height: 101 }),
+    { contentWidth: 200, contentHeight: 100, width: 216, height: 116, padding: 8 },
+  );
+});
+
+it('detects the current OC alpha bounds instead of using fixed coordinates', async () => {
+  assert.deepEqual(
+    await detectImageBounds(join(projectRoot, 'public/oc-mouth-closed.png')),
+    { x: 213, y: 188, width: 622, height: 711, canvasWidth: 1000, canvasHeight: 1000 },
+  );
 });
 
 it('exports a verified transparent 320x366 Animation MOV with AAC audio', { timeout: 120_000 }, async () => {

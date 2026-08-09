@@ -9,6 +9,84 @@ import { resolveExecutable } from './resolve-executable.js';
 const execFileAsync = promisify(execFile);
 const FFMPEG_PATH = await resolveExecutable('ffmpeg');
 const FFPROBE_PATH = await resolveExecutable('ffprobe');
+const MAX_CONTENT_SIDE = 304;
+const OUTPUT_PADDING = 8;
+
+function floorPositiveEven(value) {
+  return Math.max(2, Math.floor(value / 2) * 2);
+}
+
+function roundPositiveEven(value) {
+  return Math.max(2, Math.round(value / 2) * 2);
+}
+
+export function mergeImageBounds(first, second) {
+  if (
+    first.canvasWidth !== second.canvasWidth
+    || first.canvasHeight !== second.canvasHeight
+  ) throw new Error('Mouth images must use the same canvas dimensions.');
+
+  const x = Math.min(first.x, second.x);
+  const y = Math.min(first.y, second.y);
+  const right = Math.max(first.x + first.width, second.x + second.width);
+  const bottom = Math.max(first.y + first.height, second.y + second.height);
+  return {
+    x,
+    y,
+    width: right - x,
+    height: bottom - y,
+    canvasWidth: first.canvasWidth,
+    canvasHeight: first.canvasHeight,
+  };
+}
+
+export function calculateAutoFitDimensions(
+  bounds,
+  { maxContentSide = MAX_CONTENT_SIDE, padding = OUTPUT_PADDING } = {},
+) {
+  const scale = Math.min(1, maxContentSide / Math.max(bounds.width, bounds.height));
+  const roundToEven = scale < 1 ? roundPositiveEven : floorPositiveEven;
+  const contentWidth = roundToEven(bounds.width * scale);
+  const contentHeight = roundToEven(bounds.height * scale);
+  return {
+    contentWidth,
+    contentHeight,
+    width: contentWidth + padding * 2,
+    height: contentHeight + padding * 2,
+    padding,
+  };
+}
+
+export async function detectImageBounds(imagePath) {
+  const [{ stdout }, { stderr }] = await Promise.all([
+    execFileAsync(FFPROBE_PATH, [
+      '-v', 'error',
+      '-select_streams', 'v:0',
+      '-show_entries', 'stream=width,height',
+      '-of', 'json',
+      imagePath,
+    ]),
+    execFileAsync(FFMPEG_PATH, [
+      '-hide_banner', '-loglevel', 'info',
+      '-i', imagePath,
+      '-vf', 'alphaextract,bbox=min_val=1',
+      '-frames:v', '1',
+      '-f', 'null',
+      '-',
+    ]),
+  ]);
+  const video = JSON.parse(stdout).streams?.[0];
+  const match = stderr.match(/x1:(\d+) x2:(\d+) y1:(\d+) y2:(\d+) w:(\d+) h:(\d+)/);
+  if (!video || !match) throw new Error('Mouth image has no visible pixels.');
+  return {
+    x: Number(match[1]),
+    y: Number(match[3]),
+    width: Number(match[5]),
+    height: Number(match[6]),
+    canvasWidth: video.width,
+    canvasHeight: video.height,
+  };
+}
 
 export class ExportError extends Error {
   constructor(cause) {
