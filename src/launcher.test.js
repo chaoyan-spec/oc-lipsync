@@ -60,5 +60,5 @@ test('documents the tested and minimum Node versions plus the final save click',
 
   assert.match(readme, /Node\.js 18[^\n]*最低/);
   assert.match(readme, /Node\.js 24\.16\.0[^\n]*测试/);
-  assert.match(readme, /导出完成，点击保存 WebM/);
+  assert.match(readme, /导出完成，点击保存 MOV/);
 });

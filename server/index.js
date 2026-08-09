@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import { decodeExportMetadata, ExportRequestError } from '../public/lib/request-envelope.js';
 import { isSupportedAudio } from '../public/lib/ui-state.js';
-import { exportTransparentWebm } from './export-video.js';
+import { exportCompactMov } from './export-video.js';
 
 const MAX_BODY_BYTES = 500 * 1024 * 1024;
 const MAX_METADATA_BYTES = 1024 * 1024;
@@ -115,10 +115,6 @@ function validateContentLength(request, limit) {
   return Number.isFinite(contentLength) ? contentLength : undefined;
 }
 
-function hasValidScale(scale) {
-  return typeof scale === 'number' && Number.isFinite(scale) && scale >= 0.4 && scale <= 1;
-}
-
 function hasValidCues(cues) {
   if (!Array.isArray(cues) || cues.length === 0) return false;
 
@@ -143,7 +139,7 @@ function validateMetadata(metadata) {
     const error = new ExportRequestError('Unsupported audio extension.', 'UNSUPPORTED_AUDIO');
     throw error;
   }
-  if (!hasValidScale(metadata.scale) || !hasValidCues(metadata.cues)) {
+  if (!hasValidCues(metadata.cues)) {
     throw new ExportRequestError('Invalid export settings.');
   }
   return metadata;
@@ -266,15 +262,14 @@ async function handleExport(request, response, options) {
     const result = await options.exportVideo({
       audioPath,
       mouthCues: metadata.cues,
-      characterScale: metadata.scale,
       closedMouthPath: path.join(PROJECT_ROOT, 'public/oc-mouth-closed.png'),
       openMouthPath: path.join(PROJECT_ROOT, 'public/oc-mouth-open.png'),
       temporaryRoot,
     });
-    const downloadName = `${safeDownloadBase(metadata.filename)}-oc-lipsync.webm`;
+    const downloadName = `${safeDownloadBase(metadata.filename)}-OC口播.mov`;
     const outputMetadata = await stat(result.path);
     response.writeHead(200, {
-      'Content-Type': 'video/webm',
+      'Content-Type': 'video/quicktime',
       'Content-Length': outputMetadata.size,
       'Content-Disposition': contentDisposition(downloadName),
       'X-Content-Type-Options': 'nosniff',
@@ -304,7 +299,7 @@ async function handleExport(request, response, options) {
 }
 
 export function createAppServer({
-  exportVideo = exportTransparentWebm,
+  exportVideo = exportCompactMov,
   maxBodyBytes = MAX_BODY_BYTES,
   maxMetadataBytes = MAX_METADATA_BYTES,
   publicRoot = DEFAULT_PUBLIC_ROOT,

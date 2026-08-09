@@ -7,7 +7,6 @@ test('starts with playback and export disabled', () => {
     file: null,
     sensitivity: 35,
     minOpenMs: 120,
-    characterScale: 72,
     canPlay: false,
     canExport: false,
     error: '',

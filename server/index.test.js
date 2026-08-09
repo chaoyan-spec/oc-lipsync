@@ -47,7 +47,6 @@ function rawEnvelope(metadata, audioBytes = new Uint8Array()) {
 
 const validMetadata = {
   filename: 'sample.wav',
-  scale: 0.72,
   cues: [
     { start: 0, end: 0.5, state: 'closed' },
     { start: 0.5, end: 1, state: 'open' },
@@ -151,17 +150,6 @@ test('rejects unsupported audio extensions', async () => {
   assert.deepEqual(await response.json(), { error: UNSUPPORTED_AUDIO_ERROR });
 });
 
-test('rejects scales outside 0.4 through 1', async () => {
-  const baseUrl = await startServer();
-  const response = await post(baseUrl, encodeExportRequest(
-    { ...validMetadata, scale: 0.39 },
-    Uint8Array.from([1]),
-  ));
-
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: INVALID_SETTINGS_ERROR });
-});
-
 test('rejects invalid or non-contiguous mouth cues', async () => {
   const baseUrl = await startServer();
   const invalidCueSets = [
@@ -183,7 +171,7 @@ test('rejects invalid or non-contiguous mouth cues', async () => {
   }
 });
 
-test('returns a WebM attachment for a valid request and cleans temporary files', async () => {
+test('returns a MOV attachment for a valid request and cleans temporary files', async () => {
   let receivedInput;
   let receivedAudio;
   let temporaryRoot;
@@ -192,7 +180,7 @@ test('returns a WebM attachment for a valid request and cleans temporary files',
     receivedAudio = await readFile(input.audioPath);
     temporaryRoot = input.temporaryRoot;
     const outputDirectory = join(input.temporaryRoot, 'fake-export');
-    const outputPath = join(outputDirectory, 'transparent.webm');
+    const outputPath = join(outputDirectory, 'transparent.mov');
     await mkdir(outputDirectory);
     await writeFile(outputPath, Uint8Array.from([26, 69, 223, 163]));
     return { path: outputPath };
@@ -200,17 +188,17 @@ test('returns a WebM attachment for a valid request and cleans temporary files',
   const baseUrl = await startServer({ exportVideo });
   const fixtureAudio = await readFile(new URL('../test/fixtures/tone-silence.wav', import.meta.url));
 
-  const specialMetadata = { ...validMetadata, filename: "a'b(c)*.wav", scale: 0.4 };
+  const specialMetadata = { ...validMetadata, filename: "a'b(c)*.wav" };
   const response = await post(baseUrl, encodeExportRequest(specialMetadata, fixtureAudio));
 
   assert.equal(response.status, 200);
-  assert.match(response.headers.get('content-type'), /^video\/webm\b/);
+  assert.match(response.headers.get('content-type'), /^video\/quicktime\b/);
   assert.match(
     response.headers.get('content-disposition'),
-    /filename\*=UTF-8''a%27b%28c%29%2A-oc-lipsync\.webm/,
+    /filename\*=UTF-8''a%27b%28c%29%2A-OC%E5%8F%A3%E6%92%AD\.mov/,
   );
   assert.deepEqual(new Uint8Array(await response.arrayBuffer()), Uint8Array.from([26, 69, 223, 163]));
-  assert.equal(receivedInput.characterScale, 0.4);
+  assert.equal('characterScale' in receivedInput, false);
   assert.deepEqual(receivedInput.mouthCues, validMetadata.cues);
   assert.deepEqual(receivedAudio, fixtureAudio);
   await waitForRemoval(temporaryRoot);
@@ -233,7 +221,7 @@ test('streams framed audio into the temporary file before the request finishes',
   });
   const exportVideo = async (input) => {
     const outputDirectory = join(input.temporaryRoot, 'fake-export');
-    const outputPath = join(outputDirectory, 'transparent.webm');
+    const outputPath = join(outputDirectory, 'transparent.mov');
     await mkdir(outputDirectory);
     await writeFile(outputPath, Uint8Array.from([26, 69, 223, 163]));
     return { path: outputPath };

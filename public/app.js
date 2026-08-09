@@ -20,8 +20,6 @@ const QUIET_AUDIO_ERROR = '音频声音太轻，低于可识别阈值，暂时�
 const elements = {
   audio: document.querySelector('#preview-audio'),
   character: document.querySelector('#character'),
-  characterScale: document.querySelector('#character-scale'),
-  characterScaleValue: document.querySelector('#character-scale-value'),
   currentTime: document.querySelector('#current-time'),
   dropZone: document.querySelector('#drop-zone'),
   duration: document.querySelector('#duration'),
@@ -258,12 +256,6 @@ elements.minOpen.addEventListener('input', () => {
   rebuildTimeline();
 });
 
-elements.characterScale.addEventListener('input', () => {
-  state.characterScale = Number(elements.characterScale.value);
-  elements.characterScaleValue.value = `${state.characterScale}%`;
-  elements.character.style.width = `${state.characterScale}%`;
-});
-
 const exportController = createExportController({
   button: elements.exportButton,
   downloadLink: elements.downloadLink,
@@ -273,12 +265,10 @@ const exportController = createExportController({
     elements.progress,
     elements.sensitivity,
     elements.minOpen,
-    elements.characterScale,
   ],
   getExportInput: () => ({
     file: state.file,
     cues: state.cues,
-    characterScale: state.characterScale,
   }),
   showError,
   setExporting: (isExporting) => {
@@ -301,6 +291,3 @@ elements.sensitivity.value = String(state.sensitivity);
 elements.sensitivityValue.value = String(state.sensitivity);
 elements.minOpen.value = String(state.minOpenMs);
 elements.minOpenValue.value = `${state.minOpenMs} ms`;
-elements.characterScale.value = String(state.characterScale);
-elements.characterScaleValue.value = `${state.characterScale}%`;
-elements.character.style.width = `${state.characterScale}%`;

@@ -42,9 +42,12 @@ test('exposes the drop zone as inert and aria-disabled while exporting', async (
   assert.equal(classes.has('is-disabled'), false);
 });
 
-test('sets the OC size control minimum to 40 percent', async () => {
+test('removes canvas scale and labels the compact Jianying MOV export', async () => {
   const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
-  assert.match(html, /id="character-scale"[^>]*min="40"/);
+
+  assert.doesNotMatch(html, /id="character-scale"/);
+  assert.match(html, /320 × 366/);
+  assert.match(html, /导出剪映透明 MOV/);
 });
 
 test('provides a persistent visible save-link surface after export', async () => {
@@ -52,7 +55,7 @@ test('provides a persistent visible save-link surface after export', async () =>
 
   assert.match(
     html,
-    /<a[^>]*id="download-link"[^>]*hidden[^>]*>\s*导出完成，点击保存 WebM\s*<\/a>/,
+    /<a[^>]*id="download-link"[^>]*hidden[^>]*>\s*导出完成，点击保存 MOV\s*<\/a>/,
   );
 });
 
