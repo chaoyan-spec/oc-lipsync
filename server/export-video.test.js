@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { afterEach, it } from 'node:test';
 
-import { exportTransparentWebm } from './export-video.js';
+import { exportCompactMov } from './export-video.js';
 import { resolveExecutable } from './resolve-executable.js';
 
 const execFileAsync = promisify(execFile);
@@ -19,16 +19,15 @@ afterEach(async () => {
   temporaryRoot = undefined;
 });
 
-it('exports a verified transparent VP9 WebM with Opus audio', { timeout: 120_000 }, async () => {
+it('exports a verified transparent 320x366 Animation MOV with AAC audio', { timeout: 120_000 }, async () => {
   temporaryRoot = await mkdtemp(join(tmpdir(), 'oc-lipsync-export-test-'));
   const [ffmpegPath, ffprobePath] = await Promise.all([
     resolveExecutable('ffmpeg'),
     resolveExecutable('ffprobe'),
   ]);
 
-  const result = await exportTransparentWebm({
+  const result = await exportCompactMov({
     audioPath: join(projectRoot, 'test/fixtures/tone-silence.wav'),
-    characterScale: 0.72,
     closedMouthPath: join(projectRoot, 'public/oc-mouth-closed.png'),
     openMouthPath: join(projectRoot, 'public/oc-mouth-open.png'),
     mouthCues: [
@@ -48,7 +47,7 @@ it('exports a verified transparent VP9 WebM with Opus audio', { timeout: 120_000
       fps: result.fps,
       hasAudio: result.hasAudio,
     },
-    { width: 1080, height: 1920, fps: 30, hasAudio: true },
+    { width: 320, height: 366, fps: 15, hasAudio: true },
   );
 
   const { stdout } = await execFileAsync(ffprobePath, [
@@ -61,18 +60,18 @@ it('exports a verified transparent VP9 WebM with Opus audio', { timeout: 120_000
   const video = streams.find(({ codec_type: type }) => type === 'video');
   const audio = streams.filter(({ codec_type: type }) => type === 'audio');
 
-  assert.equal(video.codec_name, 'vp9');
-  assert.equal(video.width, 1080);
-  assert.equal(video.height, 1920);
-  assert.equal(video.avg_frame_rate, '30/1');
+  assert.equal(video.codec_name, 'qtrle');
+  assert.equal(video.width, 320);
+  assert.equal(video.height, 366);
+  assert.equal(video.avg_frame_rate, '15/1');
+  assert.equal(video.pix_fmt, 'argb');
   assert.equal(audio.length, 1);
-  assert.equal(audio[0].codec_name, 'opus');
+  assert.equal(audio[0].codec_name, 'aac');
   assert.equal(result.pixelFormat, video.pix_fmt);
   assert.deepEqual(await readdir(dirname(result.path)), [basename(result.path)]);
 
   const { stdout: corner } = await execFileAsync(ffmpegPath, [
     '-hide_banner', '-loglevel', 'error',
-    '-c:v', 'libvpx-vp9',
     '-i', result.path,
     '-vf', 'format=rgba,crop=1:1:0:0',
     '-frames:v', '1',

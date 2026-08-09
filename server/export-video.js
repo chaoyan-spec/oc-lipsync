@@ -12,7 +12,7 @@ const FFPROBE_PATH = await resolveExecutable('ffprobe');
 
 export class ExportError extends Error {
   constructor(cause) {
-    super('Could not export transparent WebM.', { cause });
+    super('Could not export transparent MOV.', { cause });
     this.name = 'ExportError';
   }
 }
@@ -51,12 +51,13 @@ async function inspectExport(path) {
   const audio = streams.filter(({ codec_type: type }) => type === 'audio');
 
   if (
-    video?.codec_name !== 'vp9'
-    || video.width !== 1080
-    || video.height !== 1920
-    || video.avg_frame_rate !== '30/1'
+    video?.codec_name !== 'qtrle'
+    || video.width !== 320
+    || video.height !== 366
+    || video.avg_frame_rate !== '15/1'
+    || video.pix_fmt !== 'argb'
     || audio.length !== 1
-    || audio[0].codec_name !== 'opus'
+    || audio[0].codec_name !== 'aac'
   ) {
     throw new Error('Encoded stream properties did not match the export contract.');
   }
@@ -67,7 +68,6 @@ async function inspectExport(path) {
 async function verifyTransparentCorner(path) {
   const { stdout } = await execFileAsync(FFMPEG_PATH, [
     '-hide_banner', '-loglevel', 'error',
-    '-c:v', 'libvpx-vp9',
     '-i', path,
     '-vf', 'format=rgba,crop=1:1:0:0',
     '-frames:v', '1',
@@ -85,15 +85,13 @@ async function verifyTransparentCorner(path) {
  * @param {object} input
  * @param {string} input.audioPath
  * @param {{start: number, end: number, state: 'open' | 'closed'}[]} input.mouthCues
- * @param {number} input.characterScale
  * @param {string} input.closedMouthPath
  * @param {string} input.openMouthPath
  * @param {string} [input.temporaryRoot]
  */
-export async function exportTransparentWebm({
+export async function exportCompactMov({
   audioPath,
   mouthCues,
-  characterScale,
   closedMouthPath,
   openMouthPath,
   temporaryRoot = tmpdir(),
@@ -103,9 +101,8 @@ export async function exportTransparentWebm({
   try {
     exportDirectory = await mkdtemp(join(temporaryRoot, 'oc-lipsync-export-'));
     const manifestPath = join(exportDirectory, 'mouth-cues.ffconcat');
-    const outputPath = join(exportDirectory, 'transparent.webm');
+    const outputPath = join(exportDirectory, 'transparent.mov');
     const duration = mouthCues.at(-1).end - mouthCues[0].start;
-    const characterSize = Math.round((characterScale * 1000) / 2) * 2;
 
     await writeFile(
       manifestPath,
@@ -117,19 +114,17 @@ export async function exportTransparentWebm({
       '-hide_banner', '-loglevel', 'error', '-y',
       '-f', 'concat', '-safe', '0', '-i', manifestPath,
       '-i', audioPath,
-      '-filter_complex', [
-        `[0:v]fps=30,scale=${characterSize}:${characterSize}:flags=lanczos,format=rgba[character]`,
-        'color=c=black@0.0:s=1080x1920:r=30,format=rgba[canvas]',
-        '[canvas][character]overlay=x=(W-w)/2:y=H-h:format=auto:shortest=1,format=yuva420p[video]',
-      ].join(';'),
+      '-filter_complex',
+      '[0:v]crop=622:711:213:188,scale=320:366:flags=lanczos,fps=15,format=argb[video]',
       '-map', '[video]',
       '-map', '1:a:0',
       '-t', duration.toFixed(6),
-      '-r', '30',
-      '-c:v', 'libvpx-vp9',
-      '-pix_fmt', 'yuva420p',
-      '-auto-alt-ref', '0',
-      '-c:a', 'libopus',
+      '-r', '15',
+      '-c:v', 'qtrle',
+      '-pix_fmt', 'argb',
+      '-c:a', 'aac',
+      '-b:a', '96k',
+      '-movflags', '+faststart',
       outputPath,
     ], { maxBuffer: 10 * 1024 * 1024 });
 
@@ -139,9 +134,9 @@ export async function exportTransparentWebm({
 
     return {
       path: outputPath,
-      width: 1080,
-      height: 1920,
-      fps: 30,
+      width: 320,
+      height: 366,
+      fps: 15,
       hasAudio: true,
       pixelFormat: video.pix_fmt,
     };
