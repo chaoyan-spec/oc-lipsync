@@ -118,7 +118,7 @@ function createManifest(mouthCues, closedMouthPath, openMouthPath) {
   ].join('\n');
 }
 
-async function inspectExport(path) {
+async function inspectExport(path, { width, height }) {
   const { stdout } = await execFileAsync(FFPROBE_PATH, [
     '-v', 'error',
     '-show_entries', 'stream=codec_type,codec_name,width,height,avg_frame_rate,pix_fmt',
@@ -131,8 +131,8 @@ async function inspectExport(path) {
 
   if (
     video?.codec_name !== 'qtrle'
-    || video.width !== 320
-    || video.height !== 366
+    || video.width !== width
+    || video.height !== height
     || video.avg_frame_rate !== '15/1'
     || video.pix_fmt !== 'argb'
     || audio.length !== 1
@@ -178,6 +178,20 @@ export async function exportCompactMov({
   let exportDirectory;
 
   try {
+    const [closedBounds, openBounds] = await Promise.all([
+      detectImageBounds(closedMouthPath),
+      detectImageBounds(openMouthPath),
+    ]);
+    const bounds = mergeImageBounds(closedBounds, openBounds);
+    const dimensions = calculateAutoFitDimensions(bounds);
+    const filter = [
+      `crop=${bounds.width}:${bounds.height}:${bounds.x}:${bounds.y}`,
+      `scale=${dimensions.contentWidth}:${dimensions.contentHeight}:flags=lanczos`,
+      `pad=${dimensions.width}:${dimensions.height}:${dimensions.padding}:${dimensions.padding}:color=black@0`,
+      'fps=15',
+      'format=argb',
+    ].join(',');
+
     exportDirectory = await mkdtemp(join(temporaryRoot, 'oc-lipsync-export-'));
     const manifestPath = join(exportDirectory, 'mouth-cues.ffconcat');
     const outputPath = join(exportDirectory, 'transparent.mov');
@@ -194,7 +208,7 @@ export async function exportCompactMov({
       '-f', 'concat', '-safe', '0', '-i', manifestPath,
       '-i', audioPath,
       '-filter_complex',
-      '[0:v]crop=622:711:213:188,scale=320:366:flags=lanczos,fps=15,format=argb[video]',
+      `[0:v]${filter}[video]`,
       '-map', '[video]',
       '-map', '1:a:0',
       '-t', duration.toFixed(6),
@@ -207,14 +221,14 @@ export async function exportCompactMov({
       outputPath,
     ], { maxBuffer: 10 * 1024 * 1024 });
 
-    const video = await inspectExport(outputPath);
+    const video = await inspectExport(outputPath, dimensions);
     await verifyTransparentCorner(outputPath);
     await rm(manifestPath);
 
     return {
       path: outputPath,
-      width: 320,
-      height: 366,
+      width: dimensions.width,
+      height: dimensions.height,
       fps: 15,
       hasAudio: true,
       pixelFormat: video.pix_fmt,

@@ -18,10 +18,15 @@ import { resolveExecutable } from './resolve-executable.js';
 const execFileAsync = promisify(execFile);
 const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 let temporaryRoot;
+let transparentSourceDirectory;
 
 afterEach(async () => {
   if (temporaryRoot) await rm(temporaryRoot, { recursive: true, force: true });
+  if (transparentSourceDirectory) {
+    await rm(transparentSourceDirectory, { recursive: true, force: true });
+  }
   temporaryRoot = undefined;
+  transparentSourceDirectory = undefined;
 });
 
 it('merges both mouth bounds and preserves their shared canvas', () => {
@@ -93,7 +98,7 @@ it('detects the current OC alpha bounds instead of using fixed coordinates', asy
   );
 });
 
-it('exports a verified transparent 320x366 Animation MOV with AAC audio', { timeout: 120_000 }, async () => {
+it('exports an auto-fit transparent Animation MOV with AAC audio', { timeout: 120_000 }, async () => {
   temporaryRoot = await mkdtemp(join(tmpdir(), 'oc-lipsync-export-test-'));
   const [ffmpegPath, ffprobePath] = await Promise.all([
     resolveExecutable('ffmpeg'),
@@ -121,7 +126,7 @@ it('exports a verified transparent 320x366 Animation MOV with AAC audio', { time
       fps: result.fps,
       hasAudio: result.hasAudio,
     },
-    { width: 320, height: 366, fps: 15, hasAudio: true },
+    { width: 282, height: 320, fps: 15, hasAudio: true },
   );
 
   const { stdout } = await execFileAsync(ffprobePath, [
@@ -135,8 +140,8 @@ it('exports a verified transparent 320x366 Animation MOV with AAC audio', { time
   const audio = streams.filter(({ codec_type: type }) => type === 'audio');
 
   assert.equal(video.codec_name, 'qtrle');
-  assert.equal(video.width, 320);
-  assert.equal(video.height, 366);
+  assert.equal(video.width, 282);
+  assert.equal(video.height, 320);
   assert.equal(video.avg_frame_rate, '15/1');
   assert.equal(video.pix_fmt, 'argb');
   assert.equal(audio.length, 1);
@@ -154,4 +159,36 @@ it('exports a verified transparent 320x366 Animation MOV with AAC audio', { time
     'pipe:1',
   ], { encoding: 'buffer' });
   assert.equal(corner[3], 0, 'top-left corner must be transparent');
+});
+
+it('rejects a fully transparent mouth image and cleans up the export directory', { timeout: 120_000 }, async () => {
+  temporaryRoot = await mkdtemp(join(tmpdir(), 'oc-lipsync-export-test-'));
+  transparentSourceDirectory = await mkdtemp(join(tmpdir(), 'oc-lipsync-transparent-test-'));
+  const ffmpegPath = await resolveExecutable('ffmpeg');
+  const transparentPath = join(transparentSourceDirectory, 'transparent.png');
+  const audioPath = join(projectRoot, 'test/fixtures/tone-silence.wav');
+  const openMouthPath = join(projectRoot, 'public/oc-mouth-open.png');
+  const mouthCues = [
+    { start: 0, end: 0.4, state: 'closed' },
+    { start: 0.4, end: 0.8, state: 'open' },
+  ];
+
+  await execFileAsync(ffmpegPath, [
+    '-hide_banner', '-loglevel', 'error', '-y',
+    '-f', 'lavfi', '-i', 'color=black@0.0:s=100x100,format=rgba',
+    '-frames:v', '1',
+    transparentPath,
+  ]);
+
+  await assert.rejects(
+    exportCompactMov({
+      audioPath,
+      closedMouthPath: transparentPath,
+      openMouthPath,
+      mouthCues,
+      temporaryRoot,
+    }),
+    { name: 'ExportError' },
+  );
+  assert.deepEqual(await readdir(temporaryRoot), []);
 });
