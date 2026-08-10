@@ -145,7 +145,7 @@ export function mouthAtTime(cues, seconds) {
 
 /**
  * Builds frame cues for the eight-frame Memory Garden talking sprite.
- * Frames: 0 closed, 1/6 small, 2/4 medium, 3 near-closed, 5 blink.
+ * Frames: 0/7 closed, 1/3 small, 2/4 medium, 5 blink, 6 near-closed.
  */
 export function buildTalkingTimeline(energies, options) {
   validateOptions(options);
@@ -174,7 +174,7 @@ export function buildTalkingTimeline(energies, options) {
     if (speechFrame % poseHoldFrames === 0) {
       const strong = energies[index] >= strongThreshold;
       const pose = Math.floor(speechFrame / poseHoldFrames) % 4;
-      heldFrame = [1, strong ? 2 : 6, 3, strong ? 4 : 1][pose];
+      heldFrame = [1, strong ? 2 : 3, 6, strong ? 4 : 3][pose];
     }
 
     const blinkPhase = index % blinkEveryFrames;

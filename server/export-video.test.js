@@ -216,7 +216,7 @@ it('exports numbered sprite frames on the same transparent MOV timeline', { time
 
   assert.deepEqual(
     { width: result.width, height: result.height, fps: result.fps },
-    { width: 182, height: 206, fps: 15 },
+    { width: 184, height: 208, fps: 15 },
   );
 
   const decodedFrames = await Promise.all([0.2, 0.6, 1, 1.4].map((time) => (

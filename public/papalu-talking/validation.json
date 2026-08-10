@@ -39,6 +39,17 @@
   "visualProportionCheck": {
     "passed": true,
     "targetVisibleHeight": 190,
+    "frameVisibleHeights": [
+      190,
+      191,
+      192,
+      191,
+      190,
+      191,
+      190,
+      190
+    ],
+    "heightRangePx": 2,
     "baselineYs": [
       203,
       203,
@@ -52,15 +63,15 @@
     "maxBaselineDeviationPx": 0,
     "centerXs": [
       96.0,
+      95.5,
+      95.5,
       96.0,
-      96.0,
-      96.0,
-      96.0,
-      96.0,
+      96.5,
+      96.5,
       96.0,
       96.0
     ],
-    "maxCenterDeviationPx": 0.0,
+    "maxCenterDeviationPx": 1.0,
     "paddingOk": true
   },
   "identityLockCheck": {
@@ -70,22 +81,47 @@
     "rightEye": "purple with original white region",
     "blinkFrame": 6,
     "blinkRetainsAsymmetricLidColors": true,
-    "clothingAndPatternUnchanged": true,
+    "neutralFirstAndLastFrames": true,
+    "clothingAndPatternPreservedByUniformBreathingTransform": true,
     "sourceArtworkRedrawn": false
   },
   "mouthMotionCheck": {
     "passed": true,
     "states": [
-      "closed",
+      "neutral-flat",
       "small",
       "medium",
-      "near-closed",
+      "small",
       "medium",
       "small-blink",
-      "small",
-      "closed"
+      "near-closed",
+      "neutral-flat"
     ],
-    "notes": "Mouth changes remain small and use no teeth or exaggerated tongue shapes."
+    "notes": "Frames 1 and 8 use the same flat relaxed mouth. Speaking mouths are larger but remain restrained."
+  },
+  "secondaryMotionCheck": {
+    "passed": true,
+    "breathLiftPx": [
+      0,
+      1,
+      2,
+      1,
+      0,
+      1,
+      0,
+      0
+    ],
+    "hairSwayPx": [
+      0,
+      -1,
+      -1,
+      0,
+      1,
+      1,
+      0,
+      0
+    ],
+    "notes": "Bottom-anchored breathing and a one-pixel eased hair sway add rhythm without foot drift."
   },
   "forbiddenPropsOrEffectsPresent": false
 }

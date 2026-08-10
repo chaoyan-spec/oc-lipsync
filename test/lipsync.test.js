@@ -129,7 +129,7 @@ describe('buildTalkingTimeline', () => {
       { start: 0, end: 0.1, frame: 0 },
       { start: 0.1, end: 0.2, frame: 1 },
       { start: 0.2, end: 0.3, frame: 2 },
-      { start: 0.3, end: 0.4, frame: 3 },
+      { start: 0.3, end: 0.4, frame: 6 },
       { start: 0.4, end: 0.5, frame: 4 },
       { start: 0.5, end: 0.6, frame: 0 },
     ]);
@@ -145,7 +145,21 @@ describe('buildTalkingTimeline', () => {
     assert.equal(frameAtTime(cues, 0.03), 1);
     assert.equal(frameAtTime(cues, 0.1), 1);
     assert.equal(frameAtTime(cues, 0.14), 2);
-    assert.equal(frameAtTime(cues, 0.27), 3);
+    assert.equal(frameAtTime(cues, 0.27), 6);
+  });
+
+  it('uses the new small-mouth frame for weak speech instead of near-closed', () => {
+    const cues = buildTalkingTimeline([
+      0.8, 0.8, 0.8, 0.8,
+      0.3, 0.3, 0.3, 0.3,
+    ], {
+      frameSeconds: 1 / 30,
+      threshold: 0.2,
+      minOpenSeconds: 0.12,
+    });
+
+    assert.equal(frameAtTime(cues, 0.14), 3);
+    assert.equal(frameAtTime(cues, 0.24), 3);
   });
 
   it('locks the selected mouth level for the complete pose hold', () => {
