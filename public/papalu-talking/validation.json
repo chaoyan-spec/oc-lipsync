@@ -41,15 +41,15 @@
     "targetVisibleHeight": 190,
     "frameVisibleHeights": [
       190,
+      192,
+      193,
       191,
+      190,
       192,
       191,
-      190,
-      191,
-      190,
       190
     ],
-    "heightRangePx": 2,
+    "heightRangePx": 3,
     "baselineYs": [
       203,
       203,
@@ -64,14 +64,14 @@
     "centerXs": [
       96.0,
       95.5,
+      94.5,
       95.5,
-      96.0,
+      97.0,
+      97.0,
       96.5,
-      96.5,
-      96.0,
       96.0
     ],
-    "maxCenterDeviationPx": 1.0,
+    "maxCenterDeviationPx": 2.5,
     "paddingOk": true
   },
   "identityLockCheck": {
@@ -103,25 +103,25 @@
     "passed": true,
     "breathLiftPx": [
       0,
+      2,
+      3,
       1,
+      0,
       2,
       1,
-      0,
-      1,
-      0,
       0
     ],
     "hairSwayPx": [
       0,
+      -2,
+      -3,
       -1,
-      -1,
-      0,
+      2,
+      3,
       1,
-      1,
-      0,
       0
     ],
-    "notes": "Bottom-anchored breathing and a one-pixel eased hair sway add rhythm without foot drift."
+    "notes": "Bottom-anchored speaking pulse and eased upper-body lean create visible rhythm while feet remain fixed."
   },
   "forbiddenPropsOrEffectsPresent": false
 }
