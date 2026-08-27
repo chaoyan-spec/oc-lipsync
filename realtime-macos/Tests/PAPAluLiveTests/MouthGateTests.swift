@@ -40,6 +40,24 @@ func testClearSpeechEntersTalkingImmediately() throws {
     )
 }
 
+func testClearSpeechAfterSilenceEntersTalkingOnFirstBuffer() throws {
+    var gate = MouthGate()
+
+    for _ in 0..<100 {
+        try expectEqual(
+            gate.update(rms: 0.003, duration: step),
+            .idle,
+            "silence must stay idle before speech"
+        )
+    }
+
+    try expectEqual(
+        gate.update(rms: 0.03, duration: step),
+        .talking,
+        "first clear speech buffer after silence must open the mouth"
+    )
+}
+
 func testShortSilenceDoesNotCloseTheMouth() throws {
     var gate = MouthGate()
     try expectEqual(gate.update(rms: 0.10, duration: step), .talking, "speech attack")
@@ -100,6 +118,10 @@ func testHysteresisPreventsThresholdChatter() throws {
 let mouthGateTests: [(String, () throws -> Void)] = [
     ("silence keeps idle", testSilenceKeepsTheMouthIdle),
     ("speech enters talking", testClearSpeechEntersTalkingImmediately),
+    (
+        "speech after silence enters talking on first buffer",
+        testClearSpeechAfterSilenceEntersTalkingOnFirstBuffer
+    ),
     ("short silence stays talking", testShortSilenceDoesNotCloseTheMouth),
     ("release returns idle", testSilencePastReleaseDelayReturnsToIdle),
     ("hysteresis prevents chatter", testHysteresisPreventsThresholdChatter),

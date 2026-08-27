@@ -59,7 +59,7 @@ struct MouthGate {
 
         switch state {
         case .idle:
-            if smoothedRms >= configuration.openThreshold {
+            if sample >= configuration.openThreshold {
                 state = .talking
                 quietDuration = 0
             }

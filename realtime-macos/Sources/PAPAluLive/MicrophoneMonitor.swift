@@ -20,7 +20,7 @@ enum MicrophoneMonitorError: LocalizedError {
 final class MicrophoneMonitor {
     typealias SampleHandler = (_ rms: Double, _ duration: Double) -> Void
 
-    private static let tapBufferSize = AVAudioFrameCount(512)
+    private static let tapBufferSize = AVAudioFrameCount(256)
 
     private let engine = AVAudioEngine()
     private let onSample: SampleHandler
