@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let delegate = AppDelegate()
         application.setActivationPolicy(.regular)
         application.delegate = delegate
-        installMainMenu(on: application)
+        installMainMenu(on: application, target: delegate)
 
         withExtendedLifetime(delegate) {
             application.run()
@@ -53,6 +53,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         microphoneMonitor?.stop()
     }
 
+    @objc private func increaseScale() {
+        window?.increaseScale()
+    }
+
+    @objc private func decreaseScale() {
+        window?.decreaseScale()
+    }
+
+    @objc private func resetScale() {
+        window?.resetScale()
+    }
+
     private func showError(_ message: String) {
         guard !didShowError else { return }
         didShowError = true
@@ -73,15 +85,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private static func installMainMenu(on application: NSApplication) {
+    private static func installMainMenu(
+        on application: NSApplication,
+        target: AppDelegate
+    ) {
         let mainMenu = NSMenu()
         let applicationItem = NSMenuItem()
         let applicationMenu = NSMenu()
-        applicationMenu.addItem(
+
+        let increaseItem = applicationMenu.addItem(
+            withTitle: "放大 PAPAlu",
+            action: #selector(increaseScale),
+            keyEquivalent: "+"
+        )
+        increaseItem.target = target
+
+        let decreaseItem = applicationMenu.addItem(
+            withTitle: "缩小 PAPAlu",
+            action: #selector(decreaseScale),
+            keyEquivalent: "-"
+        )
+        decreaseItem.target = target
+
+        let resetItem = applicationMenu.addItem(
+            withTitle: "恢复默认大小",
+            action: #selector(resetScale),
+            keyEquivalent: "0"
+        )
+        resetItem.target = target
+
+        applicationMenu.addItem(.separator())
+        let quitItem = applicationMenu.addItem(
             withTitle: "退出 PAPAlu 实时口型",
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )
+        quitItem.target = application
         applicationItem.submenu = applicationMenu
         mainMenu.addItem(applicationItem)
         application.mainMenu = mainMenu

@@ -30,6 +30,7 @@ final class PAPAluWindow: NSPanel {
     private var animationTimer: Timer?
     private var talkingFrameIndex = 0
     private var isTalking = false
+    private var windowScale = WindowScale()
 
     init(resourceDirectory: URL? = Bundle.main.resourceURL) throws {
         guard let resourceDirectory else {
@@ -92,6 +93,34 @@ final class PAPAluWindow: NSPanel {
             animationTimer = nil
             characterView.image = frames[0]
         }
+    }
+
+    func increaseScale() {
+        windowScale.increase()
+        applyCurrentScale()
+    }
+
+    func decreaseScale() {
+        windowScale.decrease()
+        applyCurrentScale()
+    }
+
+    func resetScale() {
+        windowScale.reset()
+        applyCurrentScale()
+    }
+
+    private func applyCurrentScale() {
+        let center = NSPoint(x: frame.midX, y: frame.midY)
+        let size = NSSize(
+            width: Configuration.defaultSize.width * windowScale.factor,
+            height: Configuration.defaultSize.height * windowScale.factor
+        )
+        let origin = NSPoint(
+            x: center.x - size.width / 2,
+            y: center.y - size.height / 2
+        )
+        setFrame(NSRect(origin: origin, size: size), display: true, animate: false)
     }
 
     private func startAnimationTimer() {

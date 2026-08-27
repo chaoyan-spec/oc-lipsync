@@ -6,7 +6,7 @@ struct TestFailure: Error, CustomStringConvertible {
     let description: String
 }
 
-private func expectEqual<T: Equatable>(
+func expectEqual<T: Equatable>(
     _ actual: T,
     _ expected: T,
     _ message: String

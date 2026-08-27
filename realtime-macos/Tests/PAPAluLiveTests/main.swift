@@ -1,11 +1,12 @@
 import Darwin
 
 do {
-    for (name, test) in mouthGateTests {
+    let tests = mouthGateTests + windowScaleTests
+    for (name, test) in tests {
         try test()
         print("PASS: \(name)")
     }
-    print("\(mouthGateTests.count) tests passed")
+    print("\(tests.count) tests passed")
 } catch {
     print("FAIL: \(error)")
     exit(EXIT_FAILURE)
