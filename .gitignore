@@ -6,4 +6,7 @@ work/
 outputs/*.webm
 outputs/*.mov
 outputs/*.zip
+outputs/*.app/
+realtime-macos/.build/
+realtime-macos/.swiftpm/
 *.log
