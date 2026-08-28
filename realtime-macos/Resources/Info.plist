@@ -26,8 +26,6 @@
     <true/>
     <key>NSMicrophoneUsageDescription</key>
     <string>麦克风音量仅用于实时驱动 PAPAlu 嘴型，不会保存或上传录音。</string>
-    <key>NSCameraUsageDescription</key>
-    <string>摄像头画面仅在内存中用于检测明显挥手并触发 PAPAlu 动作，不会显示、保存或上传。</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>

@@ -14,10 +14,10 @@ SOURCE_DIR="$SCRIPT_DIR/Sources/PAPAluLive"
 TEST_DIR="$SCRIPT_DIR/Tests/PAPAluLiveTests"
 RESOURCE_DIR="$TEMP_ROOT/toolchain/usr/lib/swift"
 
-xcrun swiftc -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$RESOURCE_DIR" -framework AppKit -framework QuartzCore "$SOURCE_DIR/MouthGate.swift" "$SOURCE_DIR/WindowScale.swift" "$SOURCE_DIR/IdleAnimationPlan.swift" "$SOURCE_DIR/WaveDetector.swift" "$SOURCE_DIR/ActionCoordinator.swift" "$SOURCE_DIR/PAPAluWindow.swift" "$TEST_DIR/MouthGateTests.swift" "$TEST_DIR/WindowScaleTests.swift" "$TEST_DIR/IdleAnimationPlanTests.swift" "$TEST_DIR/WaveDetectorTests.swift" "$TEST_DIR/ActionCoordinatorTests.swift" "$TEST_DIR/main.swift" -o "$TEMP_ROOT/MouthGateTests"
+xcrun swiftc -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$RESOURCE_DIR" -framework AppKit -framework QuartzCore "$SOURCE_DIR/MouthGate.swift" "$SOURCE_DIR/WindowScale.swift" "$SOURCE_DIR/IdleAnimationPlan.swift" "$SOURCE_DIR/PAPAluWindow.swift" "$TEST_DIR/MouthGateTests.swift" "$TEST_DIR/WindowScaleTests.swift" "$TEST_DIR/IdleAnimationPlanTests.swift" "$TEST_DIR/main.swift" -o "$TEMP_ROOT/MouthGateTests"
 "$TEMP_ROOT/MouthGateTests"
 
-xcrun swiftc -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$RESOURCE_DIR" -framework AppKit -framework QuartzCore -framework AVFoundation -framework Vision "$SOURCE_DIR/AppDelegate.swift" "$SOURCE_DIR/MicrophoneMonitor.swift" "$SOURCE_DIR/CameraMonitor.swift" "$SOURCE_DIR/MouthGate.swift" "$SOURCE_DIR/IdleAnimationPlan.swift" "$SOURCE_DIR/WaveDetector.swift" "$SOURCE_DIR/ActionCoordinator.swift" "$SOURCE_DIR/PAPAluWindow.swift" "$SOURCE_DIR/WindowScale.swift" "$TEST_DIR/AppShellCompileTests.swift" -o "$TEMP_ROOT/PAPAluLiveContracts"
+xcrun swiftc -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$RESOURCE_DIR" -framework AppKit -framework QuartzCore -framework AVFoundation "$SOURCE_DIR/AppDelegate.swift" "$SOURCE_DIR/MicrophoneMonitor.swift" "$SOURCE_DIR/MouthGate.swift" "$SOURCE_DIR/IdleAnimationPlan.swift" "$SOURCE_DIR/PAPAluWindow.swift" "$SOURCE_DIR/WindowScale.swift" "$TEST_DIR/AppShellCompileTests.swift" -o "$TEMP_ROOT/PAPAluLiveContracts"
 
 echo "PAPAluLive app-shell compile test passed"
 "$SCRIPT_DIR/Tests/verify-camera-removed.sh"

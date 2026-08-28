@@ -1,10 +1,14 @@
 import AppKit
 import QuartzCore
 
+enum PAPAluDisplayState: Equatable {
+    case idle
+    case talking
+}
+
 enum PAPAluWindowError: LocalizedError {
     case resourceDirectoryMissing
     case frameMissing(Int)
-    case teachingImageMissing
 
     var errorDescription: String? {
         switch self {
@@ -12,8 +16,6 @@ enum PAPAluWindowError: LocalizedError {
             return "PAPAlu 动画资源目录不存在。"
         case .frameMissing(let frame):
             return "PAPAlu 动画第 \(frame) 帧缺失。"
-        case .teachingImageMissing:
-            return "PAPAlu teaching 正式素材缺失。"
         }
     }
 }
@@ -30,7 +32,6 @@ final class PAPAluWindow: NSPanel {
     }
 
     private let frames: [NSImage]
-    private let teachingImage: NSImage
     private let idlePlan: IdleAnimationPlan
     private let characterView = DraggableImageView()
     private var animationTimer: Timer?
@@ -62,12 +63,6 @@ final class PAPAluWindow: NSPanel {
             loadedFrames.append(image)
         }
         frames = loadedFrames
-
-        let teachingPath = resourceDirectory.appendingPathComponent("Teaching.png")
-        guard let teachingImage = NSImage(contentsOf: teachingPath) else {
-            throw PAPAluWindowError.teachingImageMissing
-        }
-        self.teachingImage = teachingImage
 
         let size = Configuration.defaultSize
         let origin = Self.defaultOrigin(for: size)
@@ -114,8 +109,6 @@ final class PAPAluWindow: NSPanel {
             talkingFrameIndex = 0
             showTalkingFrame()
             startAnimationTimer()
-        case .teaching:
-            characterView.image = teachingImage
         }
     }
 

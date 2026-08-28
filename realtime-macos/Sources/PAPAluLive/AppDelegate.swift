@@ -5,14 +5,10 @@ import Foundation
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: PAPAluWindow?
     private var microphoneMonitor: MicrophoneMonitor?
-    private var cameraMonitor: CameraMonitor?
     private var mouthGate = MouthGate()
-    private var waveDetector = WaveDetector()
-    private var actionCoordinator = ActionCoordinator()
     private var lastMicrophoneState = MouthState.idle
     private var renderedState: PAPAluDisplayState?
     private var didShowError = false
-    private var didShowCameraWarning = false
 
     static func main() {
         let application = NSApplication.shared
@@ -54,24 +50,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.showError(error.localizedDescription)
             }
         }
-
-        let camera = CameraMonitor { [weak self] sample in
-            guard let self, self.waveDetector.update(sample) else { return }
-            DispatchQueue.main.async { [weak self] in
-                self?.handleWaveDetected()
-            }
-        }
-        cameraMonitor = camera
-        camera.requestAccessAndStart { [weak self] result in
-            if case .failure(let error) = result {
-                self?.showCameraWarning(error.localizedDescription)
-            }
-        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         microphoneMonitor?.stop()
-        cameraMonitor?.stop()
     }
 
     @objc private func increaseScale() {
@@ -106,41 +88,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func showCameraWarning(_ message: String) {
-        guard !didShowCameraWarning else { return }
-        didShowCameraWarning = true
-
-        DispatchQueue.main.async {
-            let alert = NSAlert()
-            alert.messageText = "PAPAlu 摄像头动作不可用"
-            alert.informativeText = message
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "继续使用实时口型")
-            alert.runModal()
-        }
-    }
-
     private func handleMicrophoneState(_ state: MouthState) {
-        actionCoordinator.updateBaseState(state == .talking ? .talking : .idle)
-        render(actionCoordinator.displayState(at: ProcessInfo.processInfo.systemUptime))
-    }
-
-    private func handleWaveDetected() {
-        let state = actionCoordinator.triggerTeaching(
-            at: ProcessInfo.processInfo.systemUptime
-        )
-        render(state)
-
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + ActionCoordinator.defaultTeachingDuration
-        ) { [weak self] in
-            guard let self else { return }
-            self.render(
-                self.actionCoordinator.displayState(
-                    at: ProcessInfo.processInfo.systemUptime
-                )
-            )
-        }
+        render(state == .talking ? .talking : .idle)
     }
 
     private func render(_ state: PAPAluDisplayState) {
