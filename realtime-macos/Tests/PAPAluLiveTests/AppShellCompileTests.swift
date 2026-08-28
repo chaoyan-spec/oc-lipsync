@@ -8,6 +8,7 @@ func verifyAppShellContractsCompile() {
     let _: PAPAluWindow.Type = PAPAluWindow.self
     let _: AppDelegate.Type = AppDelegate.self
     let _: WindowScale.Type = WindowScale.self
+    let _: ThoughtCloudView.Type = ThoughtCloudView.self
 }
 
 func verifyDisplayStatesCompile(on window: PAPAluWindow) {
@@ -18,7 +19,8 @@ func verifyDisplayStatesCompile(on window: PAPAluWindow) {
 func verifyIdlePlanInjectionCompiles(resourceDirectory: URL) throws {
     _ = try PAPAluWindow(
         resourceDirectory: resourceDirectory,
-        idlePlan: IdleAnimationPlan()
+        idlePlan: IdleAnimationPlan(),
+        thoughtCloudPlan: ThoughtCloudPlan()
     )
 }
 

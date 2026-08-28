@@ -26,7 +26,7 @@ STAGED_APP="$TEMP_ROOT/PAPAlu实时口型.app"
 CONTENTS="$STAGED_APP/Contents"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources/Frames"
 
-xcrun swiftc -O -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$TEMP_ROOT/toolchain/usr/lib/swift" -framework AppKit -framework QuartzCore -framework AVFoundation "$SOURCE_DIR/AppDelegate.swift" "$SOURCE_DIR/MicrophoneMonitor.swift" "$SOURCE_DIR/MouthGate.swift" "$SOURCE_DIR/IdleAnimationPlan.swift" "$SOURCE_DIR/PAPAluWindow.swift" "$SOURCE_DIR/WindowScale.swift" -o "$CONTENTS/MacOS/PAPAluLive"
+xcrun swiftc -O -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$TEMP_ROOT/toolchain/usr/lib/swift" -framework AppKit -framework QuartzCore -framework AVFoundation "$SOURCE_DIR/AppDelegate.swift" "$SOURCE_DIR/MicrophoneMonitor.swift" "$SOURCE_DIR/MouthGate.swift" "$SOURCE_DIR/IdleAnimationPlan.swift" "$SOURCE_DIR/ThoughtCloudPlan.swift" "$SOURCE_DIR/ThoughtCloudView.swift" "$SOURCE_DIR/PAPAluWindow.swift" "$SOURCE_DIR/WindowScale.swift" -o "$CONTENTS/MacOS/PAPAluLive"
 
 cp "$SCRIPT_DIR/Resources/Info.plist" "$CONTENTS/Info.plist"
 for frame in 0 1 2 3 4 5 6 7; do

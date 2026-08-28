@@ -24,6 +24,10 @@ private final class DraggableImageView: NSImageView {
     override var mouseDownCanMoveWindow: Bool { true }
 }
 
+private final class DraggableContainerView: NSView {
+    override var mouseDownCanMoveWindow: Bool { true }
+}
+
 final class PAPAluWindow: NSPanel {
     struct Configuration {
         static let defaultSize = NSSize(width: 288, height: 312)
@@ -33,11 +37,17 @@ final class PAPAluWindow: NSPanel {
 
     private let frames: [NSImage]
     private let idlePlan: IdleAnimationPlan
+    private let thoughtCloudPlan: ThoughtCloudPlan
+    private let containerView = DraggableContainerView()
     private let characterView = DraggableImageView()
+    private let thoughtCloudView: ThoughtCloudView
     private var animationTimer: Timer?
     private var idleBlinkTimer: Timer?
     private var idleSequenceTimer: Timer?
     private var idleSwayTimer: Timer?
+    private var thoughtCloudDelayTimer: Timer?
+    private var thoughtCloudDotTimer: Timer?
+    private var thoughtCloudDotIndex = 0
     private var idleGeneration = 0
     private var talkingFrameIndex = 0
     private var displayState: PAPAluDisplayState?
@@ -45,9 +55,12 @@ final class PAPAluWindow: NSPanel {
 
     init(
         resourceDirectory: URL? = Bundle.main.resourceURL,
-        idlePlan: IdleAnimationPlan = IdleAnimationPlan()
+        idlePlan: IdleAnimationPlan = IdleAnimationPlan(),
+        thoughtCloudPlan: ThoughtCloudPlan = ThoughtCloudPlan()
     ) throws {
         self.idlePlan = idlePlan
+        self.thoughtCloudPlan = thoughtCloudPlan
+        thoughtCloudView = ThoughtCloudView(plan: thoughtCloudPlan)
         guard let resourceDirectory else {
             throw PAPAluWindowError.resourceDirectoryMissing
         }
@@ -84,13 +97,23 @@ final class PAPAluWindow: NSPanel {
         isMovableByWindowBackground = true
         isReleasedWhenClosed = false
 
-        characterView.frame = NSRect(origin: .zero, size: size)
+        containerView.frame = NSRect(origin: .zero, size: size)
+        containerView.autoresizingMask = [.width, .height]
+
+        characterView.frame = containerView.bounds
         characterView.autoresizingMask = [.width, .height]
         characterView.imageAlignment = .alignCenter
         characterView.imageScaling = .scaleProportionallyUpOrDown
         characterView.image = frames[0]
         characterView.wantsLayer = true
-        contentView = characterView
+
+        thoughtCloudView.isHidden = true
+        thoughtCloudView.alphaValue = 0
+        layoutThoughtCloud(for: size)
+
+        containerView.addSubview(characterView)
+        containerView.addSubview(thoughtCloudView)
+        contentView = containerView
     }
 
     override var canBecomeKey: Bool { true }
@@ -138,6 +161,7 @@ final class PAPAluWindow: NSPanel {
             y: center.y - size.height / 2
         )
         setFrame(NSRect(origin: origin, size: size), display: true, animate: false)
+        layoutThoughtCloud(for: size)
     }
 
     private func startAnimationTimer() {
@@ -166,6 +190,7 @@ final class PAPAluWindow: NSPanel {
         idleSequenceTimer = nil
         idleSwayTimer?.invalidate()
         idleSwayTimer = nil
+        hideThoughtCloud()
         resetCharacterTransform()
     }
 
@@ -176,6 +201,7 @@ final class PAPAluWindow: NSPanel {
 
     private func startIdleAnimation(settlingFromTalking: Bool) {
         let generation = idleGeneration
+        scheduleThoughtCloud(generation: generation)
         let beginEvents: () -> Void = { [weak self] in
             guard let self else { return }
             self.scheduleNextBlink(generation: generation)
@@ -198,6 +224,72 @@ final class PAPAluWindow: NSPanel {
             characterView.image = frames[idlePlan.configuration.baseFrame]
             beginEvents()
         }
+    }
+
+    private func scheduleThoughtCloud(generation: Int) {
+        thoughtCloudDelayTimer = makeTimer(
+            after: thoughtCloudPlan.configuration.appearanceDelay
+        ) { [weak self] in
+            guard let self,
+                  self.displayState == .idle,
+                  generation == self.idleGeneration else { return }
+            self.showThoughtCloud(generation: generation)
+        }
+    }
+
+    private func showThoughtCloud(generation: Int) {
+        thoughtCloudView.setActiveDotIndex(0)
+        thoughtCloudView.alphaValue = 0
+        thoughtCloudView.isHidden = false
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = thoughtCloudPlan.configuration.fadeDuration
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            thoughtCloudView.animator().alphaValue = 1
+        }
+
+        let timer = Timer(
+            timeInterval: thoughtCloudPlan.configuration.dotStepInterval,
+            repeats: true
+        ) { [weak self] _ in
+            guard let self,
+                  self.displayState == .idle,
+                  generation == self.idleGeneration else { return }
+            self.thoughtCloudDotIndex = self.thoughtCloudPlan.nextDotIndex(
+                after: self.thoughtCloudDotIndex
+            )
+            self.thoughtCloudView.setActiveDotIndex(
+                self.thoughtCloudDotIndex
+            )
+        }
+        thoughtCloudDotIndex = 0
+        RunLoop.main.add(timer, forMode: .common)
+        thoughtCloudDotTimer = timer
+    }
+
+    private func hideThoughtCloud() {
+        thoughtCloudDelayTimer?.invalidate()
+        thoughtCloudDelayTimer = nil
+        thoughtCloudDotTimer?.invalidate()
+        thoughtCloudDotTimer = nil
+        thoughtCloudDotIndex = 0
+        thoughtCloudView.layer?.removeAllAnimations()
+        thoughtCloudView.alphaValue = 0
+        thoughtCloudView.isHidden = true
+        thoughtCloudView.setActiveDotIndex(0)
+    }
+
+    private func layoutThoughtCloud(for windowSize: NSSize) {
+        let frame = thoughtCloudPlan.frame(
+            windowWidth: windowSize.width,
+            windowHeight: windowSize.height
+        )
+        thoughtCloudView.frame = NSRect(
+            x: frame.x,
+            y: frame.y,
+            width: frame.width,
+            height: frame.height
+        )
     }
 
     private func scheduleNextBlink(generation: Int) {
