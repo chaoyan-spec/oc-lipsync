@@ -7,11 +7,6 @@ func testIdleUsesApprovedExistingFrames() throws {
 
     try expectEqual(configuration.baseFrame, 0, "idle base frame")
     try expectEqual(
-        configuration.breathSteps.map(\.frame),
-        [7, 0],
-        "breath must use closed-mouth frames"
-    )
-    try expectEqual(
         configuration.blinkSteps.map(\.frame),
         [5, 7, 0],
         "blink must use the approved blink and closed frames"
@@ -23,59 +18,85 @@ func testIdleUsesApprovedExistingFrames() throws {
     )
 }
 
-func testRandomDelayMappingStaysInApprovedRanges() throws {
+func testIdleSwayUsesOpposingVisiblePoses() throws {
+    let plan = IdleAnimationPlan()
+    let left = plan.swayStep(
+        direction: .left,
+        durationRandomUnit: 0.5,
+        holdRandomUnit: 0.5
+    )
+    let right = plan.swayStep(
+        direction: .right,
+        durationRandomUnit: 0.5,
+        holdRandomUnit: 0.5
+    )
+
+    try expectEqual(left.horizontalOffset, -4, "left horizontal offset")
+    try expectEqual(left.rotationDegrees, -1, "left rotation")
+    try expectEqual(right.horizontalOffset, 4, "right horizontal offset")
+    try expectEqual(right.rotationDegrees, 1, "right rotation")
+    try expectEqual(left.duration, right.duration, "opposing sway duration")
+    try expectEqual(left.holdDuration, right.holdDuration, "opposing sway hold")
+}
+
+func testSwayAndBlinkRandomMappingStaysInApprovedRanges() throws {
     let plan = IdleAnimationPlan()
 
-    try expectEqual(plan.breathDelay(randomUnit: 0), 2.8, "minimum breath delay")
-    try expectEqual(plan.breathDelay(randomUnit: 1), 4.8, "maximum breath delay")
+    let minimum = plan.swayStep(
+        direction: .left,
+        durationRandomUnit: 0,
+        holdRandomUnit: 0
+    )
+    let maximum = plan.swayStep(
+        direction: .right,
+        durationRandomUnit: 1,
+        holdRandomUnit: 1
+    )
+
+    try expectEqual(minimum.duration, 0.95, "minimum sway duration")
+    try expectEqual(maximum.duration, 1.15, "maximum sway duration")
+    try expectEqual(minimum.holdDuration, 0.08, "minimum sway hold")
+    try expectEqual(maximum.holdDuration, 0.25, "maximum sway hold")
     try expectEqual(plan.blinkDelay(randomUnit: 0), 5.5, "minimum blink delay")
     try expectEqual(plan.blinkDelay(randomUnit: 1), 9.0, "maximum blink delay")
 }
 
 func testRandomDelayMappingClampsInvalidInputs() throws {
     let plan = IdleAnimationPlan()
+    let minimum = plan.swayStep(
+        direction: .left,
+        durationRandomUnit: -4,
+        holdRandomUnit: .nan
+    )
+    let maximum = plan.swayStep(
+        direction: .right,
+        durationRandomUnit: 4,
+        holdRandomUnit: 4
+    )
 
-    try expectEqual(plan.breathDelay(randomUnit: -4), 2.8, "negative random unit")
-    try expectEqual(plan.breathDelay(randomUnit: 4), 4.8, "large random unit")
+    try expectEqual(minimum.duration, 0.95, "negative sway random unit")
+    try expectEqual(minimum.holdDuration, 0.08, "non-finite hold random unit")
+    try expectEqual(maximum.duration, 1.15, "large sway random unit")
+    try expectEqual(maximum.holdDuration, 0.25, "large hold random unit")
     try expectEqual(plan.blinkDelay(randomUnit: .nan), 5.5, "non-finite random unit")
-}
-
-func testBlinkWinsWhenItsDeadlineIsSoonerOrEqual() throws {
-    let plan = IdleAnimationPlan()
-
-    try expectEqual(
-        plan.nextEvent(breathDelay: 3.2, blinkDelay: 1.4),
-        .blink(after: 1.4),
-        "earlier blink must win"
-    )
-    try expectEqual(
-        plan.nextEvent(breathDelay: 2.0, blinkDelay: 2.0),
-        .blink(after: 2.0),
-        "blink must win a tie"
-    )
-    try expectEqual(
-        plan.nextEvent(breathDelay: 1.2, blinkDelay: 4.0),
-        .breath(after: 1.2),
-        "earlier breath must win"
-    )
 }
 
 func testIdleEventDurationsStayRestrained() throws {
     let configuration = IdleAnimationConfiguration.default
-    let breathDuration = configuration.breathSteps.reduce(0) { $0 + $1.duration }
     let blinkDuration = configuration.blinkSteps.reduce(0) { $0 + $1.duration }
     let settleDuration = configuration.settleSteps.reduce(0) { $0 + $1.duration }
 
-    try expectEqual(breathDuration, 0.56, "breath duration")
     try expectEqual(blinkDuration, 0.33, "blink duration")
     try expectEqual(settleDuration, 0.32, "settle duration")
 }
 
 let idleAnimationPlanTests: [(String, () throws -> Void)] = [
     ("idle uses approved existing frames", testIdleUsesApprovedExistingFrames),
-    ("idle random delays stay in range", testRandomDelayMappingStaysInApprovedRanges),
+    ("idle sway uses opposing visible poses", testIdleSwayUsesOpposingVisiblePoses),
+    (
+        "idle sway and blink random values stay in range",
+        testSwayAndBlinkRandomMappingStaysInApprovedRanges
+    ),
     ("idle random delays clamp invalid inputs", testRandomDelayMappingClampsInvalidInputs),
-    ("blink wins an earlier or tied deadline", testBlinkWinsWhenItsDeadlineIsSoonerOrEqual),
     ("idle event durations stay restrained", testIdleEventDurationsStayRestrained),
 ]
-

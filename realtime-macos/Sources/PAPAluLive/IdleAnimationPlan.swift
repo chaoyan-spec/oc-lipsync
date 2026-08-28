@@ -3,6 +3,18 @@ struct IdleFrameStep: Equatable {
     let duration: Double
 }
 
+enum IdleSwayDirection: Equatable {
+    case left
+    case right
+}
+
+struct IdleSwayStep: Equatable {
+    let horizontalOffset: Double
+    let rotationDegrees: Double
+    let duration: Double
+    let holdDuration: Double
+}
+
 enum IdleScheduledEvent: Equatable {
     case breath(after: Double)
     case blink(after: Double)
@@ -26,6 +38,10 @@ struct IdleAnimationConfiguration: Equatable {
             IdleFrameStep(frame: 7, duration: 0.08),
             IdleFrameStep(frame: 0, duration: 0.08),
         ],
+        swayHorizontalOffset: 4,
+        swayRotationDegrees: 1,
+        swayDurationRange: 0.95...1.15,
+        swayHoldRange: 0.08...0.25,
         breathDelayRange: 2.8...4.8,
         blinkDelayRange: 5.5...9.0
     )
@@ -34,6 +50,10 @@ struct IdleAnimationConfiguration: Equatable {
     let breathSteps: [IdleFrameStep]
     let blinkSteps: [IdleFrameStep]
     let settleSteps: [IdleFrameStep]
+    let swayHorizontalOffset: Double
+    let swayRotationDegrees: Double
+    let swayDurationRange: ClosedRange<Double>
+    let swayHoldRange: ClosedRange<Double>
     let breathDelayRange: ClosedRange<Double>
     let blinkDelayRange: ClosedRange<Double>
 }
@@ -45,12 +65,32 @@ struct IdleAnimationPlan {
         self.configuration = configuration
     }
 
-    func breathDelay(randomUnit: Double) -> Double {
-        map(randomUnit, into: configuration.breathDelayRange)
+    func swayStep(
+        direction: IdleSwayDirection,
+        durationRandomUnit: Double,
+        holdRandomUnit: Double
+    ) -> IdleSwayStep {
+        let sign = direction == .left ? -1.0 : 1.0
+        return IdleSwayStep(
+            horizontalOffset: sign * configuration.swayHorizontalOffset,
+            rotationDegrees: sign * configuration.swayRotationDegrees,
+            duration: map(
+                durationRandomUnit,
+                into: configuration.swayDurationRange
+            ),
+            holdDuration: map(
+                holdRandomUnit,
+                into: configuration.swayHoldRange
+            )
+        )
     }
 
     func blinkDelay(randomUnit: Double) -> Double {
         map(randomUnit, into: configuration.blinkDelayRange)
+    }
+
+    func breathDelay(randomUnit: Double) -> Double {
+        map(randomUnit, into: configuration.breathDelayRange)
     }
 
     func nextEvent(
@@ -73,4 +113,3 @@ struct IdleAnimationPlan {
             + (range.upperBound - range.lowerBound) * clampedUnit
     }
 }
-
