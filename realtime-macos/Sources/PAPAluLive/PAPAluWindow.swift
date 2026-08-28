@@ -3,6 +3,7 @@ import AppKit
 enum PAPAluWindowError: LocalizedError {
     case resourceDirectoryMissing
     case frameMissing(Int)
+    case teachingImageMissing
 
     var errorDescription: String? {
         switch self {
@@ -10,6 +11,8 @@ enum PAPAluWindowError: LocalizedError {
             return "PAPAlu 动画资源目录不存在。"
         case .frameMissing(let frame):
             return "PAPAlu 动画第 \(frame) 帧缺失。"
+        case .teachingImageMissing:
+            return "PAPAlu teaching 正式素材缺失。"
         }
     }
 }
@@ -26,13 +29,23 @@ final class PAPAluWindow: NSPanel {
     }
 
     private let frames: [NSImage]
+    private let teachingImage: NSImage
+    private let idlePlan: IdleAnimationPlan
     private let characterView = DraggableImageView()
     private var animationTimer: Timer?
+    private var idleTimer: Timer?
+    private var idleSequenceTimer: Timer?
+    private var idleGeneration = 0
+    private var blinkDeadline = 0.0
     private var talkingFrameIndex = 0
-    private var isTalking = false
+    private var displayState: PAPAluDisplayState?
     private var windowScale = WindowScale()
 
-    init(resourceDirectory: URL? = Bundle.main.resourceURL) throws {
+    init(
+        resourceDirectory: URL? = Bundle.main.resourceURL,
+        idlePlan: IdleAnimationPlan = IdleAnimationPlan()
+    ) throws {
+        self.idlePlan = idlePlan
         guard let resourceDirectory else {
             throw PAPAluWindowError.resourceDirectoryMissing
         }
@@ -48,6 +61,12 @@ final class PAPAluWindow: NSPanel {
             loadedFrames.append(image)
         }
         frames = loadedFrames
+
+        let teachingPath = resourceDirectory.appendingPathComponent("Teaching.png")
+        guard let teachingImage = NSImage(contentsOf: teachingPath) else {
+            throw PAPAluWindowError.teachingImageMissing
+        }
+        self.teachingImage = teachingImage
 
         let size = Configuration.defaultSize
         let origin = Self.defaultOrigin(for: size)
@@ -80,18 +99,21 @@ final class PAPAluWindow: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
-    func setTalking(_ talking: Bool) {
-        guard talking != isTalking else { return }
-        isTalking = talking
+    func setDisplayState(_ state: PAPAluDisplayState) {
+        guard state != displayState else { return }
+        let previousState = displayState
+        displayState = state
+        cancelAllAnimation()
 
-        if talking {
+        switch state {
+        case .idle:
+            startIdleAnimation(settlingFromTalking: previousState == .talking)
+        case .talking:
             talkingFrameIndex = 0
             showTalkingFrame()
             startAnimationTimer()
-        } else {
-            animationTimer?.invalidate()
-            animationTimer = nil
-            characterView.image = frames[0]
+        case .teaching:
+            characterView.image = teachingImage
         }
     }
 
@@ -139,9 +161,121 @@ final class PAPAluWindow: NSPanel {
         animationTimer = timer
     }
 
+    private func cancelAllAnimation() {
+        idleGeneration += 1
+        animationTimer?.invalidate()
+        animationTimer = nil
+        idleTimer?.invalidate()
+        idleTimer = nil
+        idleSequenceTimer?.invalidate()
+        idleSequenceTimer = nil
+    }
+
     private func showTalkingFrame() {
         let frame = Configuration.talkingFrames[talkingFrameIndex]
         characterView.image = frames[frame]
+    }
+
+    private func startIdleAnimation(settlingFromTalking: Bool) {
+        let generation = idleGeneration
+        blinkDeadline = ProcessInfo.processInfo.systemUptime
+            + idlePlan.blinkDelay(randomUnit: Double.random(in: 0...1))
+        let beginEvents: () -> Void = { [weak self] in
+            self?.scheduleNextIdleEvent(generation: generation)
+        }
+
+        if settlingFromTalking {
+            playIdleSequence(
+                idlePlan.configuration.settleSteps,
+                generation: generation,
+                completion: beginEvents
+            )
+        } else {
+            characterView.image = frames[idlePlan.configuration.baseFrame]
+            beginEvents()
+        }
+    }
+
+    private func scheduleNextIdleEvent(generation: Int) {
+        guard displayState == .idle, generation == idleGeneration else { return }
+
+        let breathDelay = idlePlan.breathDelay(
+            randomUnit: Double.random(in: 0...1)
+        )
+        let blinkDelay = max(
+            0,
+            blinkDeadline - ProcessInfo.processInfo.systemUptime
+        )
+        let event = idlePlan.nextEvent(
+            breathDelay: breathDelay,
+            blinkDelay: blinkDelay
+        )
+        let delay: Double
+        switch event {
+        case .breath(let after), .blink(let after):
+            delay = after
+        }
+
+        idleTimer = makeTimer(after: delay) { [weak self] in
+            self?.runIdleEvent(event, generation: generation)
+        }
+    }
+
+    private func runIdleEvent(
+        _ event: IdleScheduledEvent,
+        generation: Int
+    ) {
+        let steps: [IdleFrameStep]
+        switch event {
+        case .breath:
+            steps = idlePlan.configuration.breathSteps
+        case .blink:
+            steps = idlePlan.configuration.blinkSteps
+            blinkDeadline = ProcessInfo.processInfo.systemUptime
+                + idlePlan.blinkDelay(randomUnit: Double.random(in: 0...1))
+        }
+
+        playIdleSequence(steps, generation: generation) { [weak self] in
+            self?.scheduleNextIdleEvent(generation: generation)
+        }
+    }
+
+    private func playIdleSequence(
+        _ steps: [IdleFrameStep],
+        index: Int = 0,
+        generation: Int,
+        completion: @escaping () -> Void
+    ) {
+        guard displayState == .idle, generation == idleGeneration else { return }
+        guard index < steps.count else {
+            completion()
+            return
+        }
+
+        let step = steps[index]
+        characterView.image = frames[step.frame]
+        idleSequenceTimer = makeTimer(after: step.duration) { [weak self] in
+            self?.playIdleSequence(
+                steps,
+                index: index + 1,
+                generation: generation,
+                completion: completion
+            )
+        }
+    }
+
+    private func makeTimer(
+        after delay: Double,
+        action: @escaping () -> Void
+    ) -> Timer {
+        let timer = Timer(
+            timeInterval: max(0, delay),
+            repeats: false
+        ) { _ in
+            action()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        return timer
     }
 
     private static func defaultOrigin(for size: NSSize) -> NSPoint {
