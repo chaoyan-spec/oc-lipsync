@@ -13,10 +13,10 @@ struct ThoughtCloudConfiguration: Equatable {
         inactiveDotAlpha: 0.35,
         activeDotAlpha: 1.0,
         normalizedFrame: ThoughtCloudFrame(
-            x: 0.60,
-            y: 0.77,
-            width: 0.30,
-            height: 0.18
+            x: 0.525,
+            y: 0.725,
+            width: 0.45,
+            height: 0.27
         )
     )
 
