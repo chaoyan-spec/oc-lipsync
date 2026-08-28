@@ -21,10 +21,10 @@ private let step = 0.01
 func testDefaultGateUsesApprovedMidSentenceProtection() throws {
     let configuration = MouthGateConfiguration.default
 
-    try expectEqual(configuration.openThreshold, 0.020, "default open threshold")
-    try expectEqual(configuration.closeThreshold, 0.015, "default close threshold")
+    try expectEqual(configuration.openThreshold, 0.012, "default open threshold")
+    try expectEqual(configuration.closeThreshold, 0.006, "default close threshold")
     try expectEqual(configuration.smoothingFactor, 0.35, "default smoothing")
-    try expectEqual(configuration.releaseDelay, 0.30, "default release delay")
+    try expectEqual(configuration.releaseDelay, 0.60, "default release delay")
 }
 
 func testSilenceKeepsTheMouthIdle() throws {
@@ -97,7 +97,7 @@ func testSoftSpeechCanRestartAfterSilence() throws {
     var gate = MouthGate()
 
     try expectEqual(
-        gate.update(rms: 0.020, duration: step),
+        gate.update(rms: 0.012, duration: step),
         .talking,
         "soft but intentional speech must open the mouth"
     )
@@ -108,7 +108,7 @@ func testSubThresholdBackgroundNoiseStaysIdle() throws {
 
     for _ in 0..<100 {
         try expectEqual(
-            gate.update(rms: 0.019, duration: step),
+            gate.update(rms: 0.011, duration: step),
             .idle,
             "background sound below the open threshold must stay idle"
         )
@@ -120,23 +120,50 @@ func testSilencePastNewReleaseDelayReturnsToIdle() throws {
     try expectEqual(gate.update(rms: 0.10, duration: step), .talking, "speech attack")
 
     var state = MouthState.talking
-    for _ in 0..<50 {
+    for _ in 0..<100 {
         state = gate.update(rms: 0, duration: step)
     }
 
     try expectEqual(state, .idle, "sustained silence must still return to idle")
 }
 
-func testSilencePastReleaseDelayReturnsToIdle() throws {
+func testCapturedContinuousSpeechTraceNeverFallsIdle() throws {
+    var gate = MouthGate()
+    let capturedRms = [
+        0.053747,
+        0.014067,
+        0.019504,
+        0.020690,
+        0.010877,
+        0.012966,
+        0.017542,
+        0.022797,
+        0.026019,
+        0.008053,
+        0.010007,
+        0.010191,
+        0.006781,
+    ]
+
+    for rms in capturedRms {
+        try expectEqual(
+            gate.update(rms: rms, duration: 0.1),
+            .talking,
+            "captured continuous speech must not enter idle at RMS \(rms)"
+        )
+    }
+}
+
+func testSilenceBeforeReleaseDelayRemainsTalking() throws {
     var gate = MouthGate()
     try expectEqual(gate.update(rms: 0.10, duration: step), .talking, "speech attack")
 
     var state = MouthState.talking
-    for _ in 0..<40 {
+    for _ in 0..<50 {
         state = gate.update(rms: 0, duration: step)
     }
 
-    try expectEqual(state, .idle, "long silence must return to idle")
+    try expectEqual(state, .talking, "500ms quiet must remain talking")
 }
 
 func testHysteresisPreventsThresholdChatter() throws {
@@ -193,6 +220,10 @@ let mouthGateTests: [(String, () throws -> Void)] = [
         "new release delay still returns idle",
         testSilencePastNewReleaseDelayReturnsToIdle
     ),
-    ("release returns idle", testSilencePastReleaseDelayReturnsToIdle),
+    (
+        "captured continuous speech stays talking",
+        testCapturedContinuousSpeechTraceNeverFallsIdle
+    ),
+    ("pre-release silence stays talking", testSilenceBeforeReleaseDelayRemainsTalking),
     ("hysteresis prevents chatter", testHysteresisPreventsThresholdChatter),
 ]
