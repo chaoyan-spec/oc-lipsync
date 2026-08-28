@@ -8,6 +8,7 @@ OUTPUT_DIR="$REPO_ROOT/outputs"
 OUTPUT_APP="$OUTPUT_DIR/PAPAlu实时口型.app"
 SOURCE_DIR="$SCRIPT_DIR/Sources/PAPAluLive"
 FRAME_DIR="$REPO_ROOT/public/papalu-talking/frames"
+TEACHING_IMAGE="$REPO_ROOT/public/papalu-states/teaching.png"
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/papalu-live-build.XXXXXX")"
 trap 'rm -rf "$TEMP_ROOT"' EXIT
 
@@ -17,6 +18,10 @@ for frame in 0 1 2 3 4 5 6 7; do
     exit 1
   fi
 done
+if [[ ! -f "$TEACHING_IMAGE" ]]; then
+  echo "Missing approved PAPAlu teaching asset: $TEACHING_IMAGE" >&2
+  exit 1
+fi
 
 mkdir -p "$TEMP_ROOT/toolchain/usr/lib" "$TEMP_ROOT/toolchain/usr/include/swift"
 ln -s /Library/Developer/CommandLineTools/usr/lib/swift "$TEMP_ROOT/toolchain/usr/lib/swift"
@@ -26,12 +31,13 @@ STAGED_APP="$TEMP_ROOT/PAPAlu实时口型.app"
 CONTENTS="$STAGED_APP/Contents"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources/Frames"
 
-xcrun swiftc -O -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$TEMP_ROOT/toolchain/usr/lib/swift" -framework AppKit -framework AVFoundation "$SOURCE_DIR/AppDelegate.swift" "$SOURCE_DIR/MicrophoneMonitor.swift" "$SOURCE_DIR/MouthGate.swift" "$SOURCE_DIR/PAPAluWindow.swift" "$SOURCE_DIR/WindowScale.swift" -o "$CONTENTS/MacOS/PAPAluLive"
+xcrun swiftc -O -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$TEMP_ROOT/toolchain/usr/lib/swift" -framework AppKit -framework AVFoundation -framework Vision "$SOURCE_DIR/AppDelegate.swift" "$SOURCE_DIR/MicrophoneMonitor.swift" "$SOURCE_DIR/CameraMonitor.swift" "$SOURCE_DIR/MouthGate.swift" "$SOURCE_DIR/IdleAnimationPlan.swift" "$SOURCE_DIR/WaveDetector.swift" "$SOURCE_DIR/ActionCoordinator.swift" "$SOURCE_DIR/PAPAluWindow.swift" "$SOURCE_DIR/WindowScale.swift" -o "$CONTENTS/MacOS/PAPAluLive"
 
 cp "$SCRIPT_DIR/Resources/Info.plist" "$CONTENTS/Info.plist"
 for frame in 0 1 2 3 4 5 6 7; do
   cp "$FRAME_DIR/$frame.png" "$CONTENTS/Resources/Frames/$frame.png"
 done
+cp "$TEACHING_IMAGE" "$CONTENTS/Resources/Teaching.png"
 chmod +x "$CONTENTS/MacOS/PAPAluLive"
 plutil -lint "$CONTENTS/Info.plist" >/dev/null
 

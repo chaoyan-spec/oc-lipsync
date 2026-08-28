@@ -1,7 +1,11 @@
 import Darwin
 
 do {
-    let tests = mouthGateTests + windowScaleTests
+    let tests = mouthGateTests
+        + windowScaleTests
+        + idleAnimationPlanTests
+        + waveDetectorTests
+        + actionCoordinatorTests
     for (name, test) in tests {
         try test()
         print("PASS: \(name)")
