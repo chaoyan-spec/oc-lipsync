@@ -8,6 +8,8 @@
     <string>PAPAlu 实时口型</string>
     <key>CFBundleExecutable</key>
     <string>PAPAluLive</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon.icns</string>
     <key>CFBundleIdentifier</key>
     <string>com.chaoyan.papalu-live</string>
     <key>CFBundleInfoDictionaryVersion</key>

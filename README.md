@@ -17,6 +17,8 @@ open "outputs/PAPAlu实时口型.app"
 
 生成位置是 `outputs/PAPAlu实时口型.app`。首次启动时只需要允许麦克风权限；如果之前拒绝，请到“系统设置 → 隐私与安全性 → 麦克风”重新打开。直接拖动人物即可调整位置；使用 `Command +` 放大、`Command -` 缩小、`Command 0` 恢复默认大小，按 `Command-Q` 退出。
 
+安装后，PAPAlu 位于 `/Applications/PAPAlu 实时口型.app`。可以在 Spotlight 或启动台搜索“PAPAlu 实时口型”启动。关闭时可右键 Dock 中的 PAPAlu 图标选择“退出”，或先聚焦 PAPAlu 再按 `Command-Q`。
+
 运行实时逻辑与原生应用编译测试：
 
 ```bash

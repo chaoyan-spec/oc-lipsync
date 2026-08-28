@@ -8,6 +8,7 @@ OUTPUT_DIR="$REPO_ROOT/outputs"
 OUTPUT_APP="$OUTPUT_DIR/PAPAlu实时口型.app"
 SOURCE_DIR="$SCRIPT_DIR/Sources/PAPAluLive"
 FRAME_DIR="$REPO_ROOT/public/papalu-talking/frames"
+ICON_FILE="$SCRIPT_DIR/Resources/AppIcon.icns"
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/papalu-live-build.XXXXXX")"
 trap 'rm -rf "$TEMP_ROOT"' EXIT
 
@@ -17,6 +18,11 @@ for frame in 0 1 2 3 4 5 6 7; do
     exit 1
   fi
 done
+
+if [[ ! -f "$ICON_FILE" ]]; then
+  echo "Missing PAPAlu app icon: $ICON_FILE" >&2
+  exit 1
+fi
 
 mkdir -p "$TEMP_ROOT/toolchain/usr/lib" "$TEMP_ROOT/toolchain/usr/include/swift"
 ln -s /Library/Developer/CommandLineTools/usr/lib/swift "$TEMP_ROOT/toolchain/usr/lib/swift"
@@ -29,6 +35,7 @@ mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources/Frames"
 xcrun swiftc -O -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$TEMP_ROOT/toolchain/usr/lib/swift" -framework AppKit -framework QuartzCore -framework AVFoundation "$SOURCE_DIR/AppDelegate.swift" "$SOURCE_DIR/MicrophoneMonitor.swift" "$SOURCE_DIR/MouthGate.swift" "$SOURCE_DIR/IdleAnimationPlan.swift" "$SOURCE_DIR/ThoughtCloudPlan.swift" "$SOURCE_DIR/ThoughtCloudView.swift" "$SOURCE_DIR/PAPAluWindow.swift" "$SOURCE_DIR/WindowScale.swift" -o "$CONTENTS/MacOS/PAPAluLive"
 
 cp "$SCRIPT_DIR/Resources/Info.plist" "$CONTENTS/Info.plist"
+cp "$ICON_FILE" "$CONTENTS/Resources/AppIcon.icns"
 for frame in 0 1 2 3 4 5 6 7; do
   cp "$FRAME_DIR/$frame.png" "$CONTENTS/Resources/Frames/$frame.png"
 done
