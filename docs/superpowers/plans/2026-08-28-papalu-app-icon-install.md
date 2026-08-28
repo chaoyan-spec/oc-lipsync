@@ -4,7 +4,7 @@
 
 **Goal:** Create a recognizable PAPAlu macOS icon from the approved frame 0, wire it into the app bundle, and install the app at `/Applications/PAPAlu 实时口型.app`.
 
-**Architecture:** A small Swift/AppKit generator draws the unchanged approved PAPAlu crop on a pink rounded-square background and emits a 1024px PNG. A shell wrapper creates the required iconset and `AppIcon.icns`; the existing app builder packages that ICNS and the plist declares it. A shell contract test verifies the assets and built bundle before installation.
+**Architecture:** A small Swift/AppKit generator draws the complete approved PAPAlu frame on a white rounded-square background and emits a 1024px PNG. A shell wrapper creates the required iconset and `AppIcon.icns`; the existing app builder packages that ICNS and the plist declares it. A shell contract test verifies the assets and built bundle before installation.
 
 **Tech Stack:** Swift 5, AppKit, `sips`, `iconutil`, Bash, macOS App Bundle metadata.
 
@@ -74,7 +74,7 @@ Expected: FAIL because `Resources/AppIcon-1024.png` and `Resources/AppIcon.icns`
 
 - [ ] **Step 3: Add the minimal reproducible icon generator**
 
-Create `generate-app-icon.swift` using AppKit. It must load the first frame, create a 1024×1024 transparent bitmap, draw a rounded rectangle in `#F4CAD9`, and draw source rectangle `(0, 42, 192, 166)` into destination rectangle `(96, 124, 832, 720)` without changing the character artwork.
+Create `generate-app-icon.swift` using AppKit. It must load the first frame, create a 1024×1024 transparent bitmap, draw a white rounded rectangle, and draw the complete source rectangle `(0, 0, 192, 208)` into destination rectangle `(152, 112, 720, 780)` without changing the character artwork.
 
 ```swift
 import AppKit
@@ -111,15 +111,15 @@ NSGraphicsContext.saveGraphicsState()
 NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
 NSColor.clear.setFill()
 NSRect(x: 0, y: 0, width: 1024, height: 1024).fill()
-NSColor(calibratedRed: 244 / 255, green: 202 / 255, blue: 217 / 255, alpha: 1).setFill()
+NSColor.white.setFill()
 NSBezierPath(
     roundedRect: NSRect(x: 48, y: 48, width: 928, height: 928),
     xRadius: 220,
     yRadius: 220
 ).fill()
 sourceImage.draw(
-    in: NSRect(x: 96, y: 124, width: 832, height: 720),
-    from: NSRect(x: 0, y: 42, width: 192, height: 166),
+    in: NSRect(x: 152, y: 112, width: 720, height: 780),
+    from: NSRect(x: 0, y: 0, width: 192, height: 208),
     operation: .sourceOver,
     fraction: 1,
     respectFlipped: false,

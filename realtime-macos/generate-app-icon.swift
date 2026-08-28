@@ -36,12 +36,7 @@ NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
 NSColor.clear.setFill()
 NSRect(x: 0, y: 0, width: 1024, height: 1024).fill()
 
-NSColor(
-    calibratedRed: 244.0 / 255.0,
-    green: 202.0 / 255.0,
-    blue: 217.0 / 255.0,
-    alpha: 1
-).setFill()
+NSColor.white.setFill()
 NSBezierPath(
     roundedRect: NSRect(x: 48, y: 48, width: 928, height: 928),
     xRadius: 220,
@@ -49,8 +44,8 @@ NSBezierPath(
 ).fill()
 
 sourceImage.draw(
-    in: NSRect(x: 96, y: 124, width: 832, height: 720),
-    from: NSRect(x: 0, y: 42, width: 192, height: 166),
+    in: NSRect(x: 152, y: 112, width: 720, height: 780),
+    from: NSRect(x: 0, y: 0, width: 192, height: 208),
     operation: .sourceOver,
     fraction: 1,
     respectFlipped: false,
