@@ -15,18 +15,9 @@ struct IdleSwayStep: Equatable {
     let holdDuration: Double
 }
 
-enum IdleScheduledEvent: Equatable {
-    case breath(after: Double)
-    case blink(after: Double)
-}
-
 struct IdleAnimationConfiguration: Equatable {
     static let `default` = IdleAnimationConfiguration(
         baseFrame: 0,
-        breathSteps: [
-            IdleFrameStep(frame: 7, duration: 0.28),
-            IdleFrameStep(frame: 0, duration: 0.28),
-        ],
         blinkSteps: [
             IdleFrameStep(frame: 5, duration: 0.11),
             IdleFrameStep(frame: 7, duration: 0.10),
@@ -42,19 +33,16 @@ struct IdleAnimationConfiguration: Equatable {
         swayRotationDegrees: 1,
         swayDurationRange: 0.95...1.15,
         swayHoldRange: 0.08...0.25,
-        breathDelayRange: 2.8...4.8,
         blinkDelayRange: 5.5...9.0
     )
 
     let baseFrame: Int
-    let breathSteps: [IdleFrameStep]
     let blinkSteps: [IdleFrameStep]
     let settleSteps: [IdleFrameStep]
     let swayHorizontalOffset: Double
     let swayRotationDegrees: Double
     let swayDurationRange: ClosedRange<Double>
     let swayHoldRange: ClosedRange<Double>
-    let breathDelayRange: ClosedRange<Double>
     let blinkDelayRange: ClosedRange<Double>
 }
 
@@ -87,20 +75,6 @@ struct IdleAnimationPlan {
 
     func blinkDelay(randomUnit: Double) -> Double {
         map(randomUnit, into: configuration.blinkDelayRange)
-    }
-
-    func breathDelay(randomUnit: Double) -> Double {
-        map(randomUnit, into: configuration.breathDelayRange)
-    }
-
-    func nextEvent(
-        breathDelay: Double,
-        blinkDelay: Double
-    ) -> IdleScheduledEvent {
-        if blinkDelay <= breathDelay {
-            return .blink(after: max(0, blinkDelay))
-        }
-        return .breath(after: max(0, breathDelay))
     }
 
     private func map(

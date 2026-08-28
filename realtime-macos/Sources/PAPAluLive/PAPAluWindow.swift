@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 
 enum PAPAluWindowError: LocalizedError {
     case resourceDirectoryMissing
@@ -24,7 +25,7 @@ private final class DraggableImageView: NSImageView {
 final class PAPAluWindow: NSPanel {
     struct Configuration {
         static let defaultSize = NSSize(width: 288, height: 312)
-        static let talkingFrames = [1, 2, 3, 4, 6, 3]
+        static let talkingFrames = [2, 1, 3, 4, 6, 3]
         static let talkingFramesPerSecond = 8.0
     }
 
@@ -33,10 +34,10 @@ final class PAPAluWindow: NSPanel {
     private let idlePlan: IdleAnimationPlan
     private let characterView = DraggableImageView()
     private var animationTimer: Timer?
-    private var idleTimer: Timer?
+    private var idleBlinkTimer: Timer?
     private var idleSequenceTimer: Timer?
+    private var idleSwayTimer: Timer?
     private var idleGeneration = 0
-    private var blinkDeadline = 0.0
     private var talkingFrameIndex = 0
     private var displayState: PAPAluDisplayState?
     private var windowScale = WindowScale()
@@ -93,6 +94,7 @@ final class PAPAluWindow: NSPanel {
         characterView.imageAlignment = .alignCenter
         characterView.imageScaling = .scaleProportionallyUpOrDown
         characterView.image = frames[0]
+        characterView.wantsLayer = true
         contentView = characterView
     }
 
@@ -165,10 +167,13 @@ final class PAPAluWindow: NSPanel {
         idleGeneration += 1
         animationTimer?.invalidate()
         animationTimer = nil
-        idleTimer?.invalidate()
-        idleTimer = nil
+        idleBlinkTimer?.invalidate()
+        idleBlinkTimer = nil
         idleSequenceTimer?.invalidate()
         idleSequenceTimer = nil
+        idleSwayTimer?.invalidate()
+        idleSwayTimer = nil
+        resetCharacterTransform()
     }
 
     private func showTalkingFrame() {
@@ -178,10 +183,16 @@ final class PAPAluWindow: NSPanel {
 
     private func startIdleAnimation(settlingFromTalking: Bool) {
         let generation = idleGeneration
-        blinkDeadline = ProcessInfo.processInfo.systemUptime
-            + idlePlan.blinkDelay(randomUnit: Double.random(in: 0...1))
         let beginEvents: () -> Void = { [weak self] in
-            self?.scheduleNextIdleEvent(generation: generation)
+            guard let self else { return }
+            self.scheduleNextBlink(generation: generation)
+            let firstDirection: IdleSwayDirection = Bool.random()
+                ? .left
+                : .right
+            self.runNextSway(
+                direction: firstDirection,
+                generation: generation
+            )
         }
 
         if settlingFromTalking {
@@ -196,48 +207,75 @@ final class PAPAluWindow: NSPanel {
         }
     }
 
-    private func scheduleNextIdleEvent(generation: Int) {
+    private func scheduleNextBlink(generation: Int) {
         guard displayState == .idle, generation == idleGeneration else { return }
 
-        let breathDelay = idlePlan.breathDelay(
+        let delay = idlePlan.blinkDelay(
             randomUnit: Double.random(in: 0...1)
         )
-        let blinkDelay = max(
-            0,
-            blinkDeadline - ProcessInfo.processInfo.systemUptime
-        )
-        let event = idlePlan.nextEvent(
-            breathDelay: breathDelay,
-            blinkDelay: blinkDelay
-        )
-        let delay: Double
-        switch event {
-        case .breath(let after), .blink(let after):
-            delay = after
-        }
-
-        idleTimer = makeTimer(after: delay) { [weak self] in
-            self?.runIdleEvent(event, generation: generation)
+        idleBlinkTimer = makeTimer(after: delay) { [weak self] in
+            guard let self else { return }
+            self.playIdleSequence(
+                self.idlePlan.configuration.blinkSteps,
+                generation: generation
+            ) { [weak self] in
+                self?.scheduleNextBlink(generation: generation)
+            }
         }
     }
 
-    private func runIdleEvent(
-        _ event: IdleScheduledEvent,
+    private func runNextSway(
+        direction: IdleSwayDirection,
         generation: Int
     ) {
-        let steps: [IdleFrameStep]
-        switch event {
-        case .breath:
-            steps = idlePlan.configuration.breathSteps
-        case .blink:
-            steps = idlePlan.configuration.blinkSteps
-            blinkDeadline = ProcessInfo.processInfo.systemUptime
-                + idlePlan.blinkDelay(randomUnit: Double.random(in: 0...1))
-        }
+        guard displayState == .idle, generation == idleGeneration else { return }
+        let step = idlePlan.swayStep(
+            direction: direction,
+            durationRandomUnit: Double.random(in: 0...1),
+            holdRandomUnit: Double.random(in: 0...1)
+        )
+        animateCharacter(to: step)
 
-        playIdleSequence(steps, generation: generation) { [weak self] in
-            self?.scheduleNextIdleEvent(generation: generation)
+        idleSwayTimer = makeTimer(
+            after: step.duration + step.holdDuration
+        ) { [weak self] in
+            self?.runNextSway(
+                direction: direction == .left ? .right : .left,
+                generation: generation
+            )
         }
+    }
+
+    private func animateCharacter(to step: IdleSwayStep) {
+        guard let layer = characterView.layer else { return }
+        let radians = CGFloat(step.rotationDegrees * .pi / 180)
+        var transform = CATransform3DMakeTranslation(
+            CGFloat(step.horizontalOffset),
+            0,
+            0
+        )
+        transform = CATransform3DRotate(transform, radians, 0, 0, 1)
+
+        let animation = CABasicAnimation(keyPath: "transform")
+        animation.fromValue = layer.presentation()?.transform ?? layer.transform
+        animation.toValue = transform
+        animation.duration = step.duration
+        animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.transform = transform
+        CATransaction.commit()
+        layer.add(animation, forKey: "papaluIdleSway")
+    }
+
+    private func resetCharacterTransform() {
+        guard let layer = characterView.layer else { return }
+        layer.removeAnimation(forKey: "papaluIdleSway")
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.transform = CATransform3DIdentity
+        CATransaction.commit()
     }
 
     private func playIdleSequence(

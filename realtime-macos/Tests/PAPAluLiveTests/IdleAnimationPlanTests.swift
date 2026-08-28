@@ -90,6 +90,14 @@ func testIdleEventDurationsStayRestrained() throws {
     try expectEqual(settleDuration, 0.32, "settle duration")
 }
 
+func testTalkingStartsWithClearlyOpenMouth() throws {
+    try expectEqual(
+        PAPAluWindow.Configuration.talkingFrames.first,
+        2,
+        "talking must start with a clearly open mouth"
+    )
+}
+
 let idleAnimationPlanTests: [(String, () throws -> Void)] = [
     ("idle uses approved existing frames", testIdleUsesApprovedExistingFrames),
     ("idle sway uses opposing visible poses", testIdleSwayUsesOpposingVisiblePoses),
@@ -99,4 +107,5 @@ let idleAnimationPlanTests: [(String, () throws -> Void)] = [
     ),
     ("idle random delays clamp invalid inputs", testRandomDelayMappingClampsInvalidInputs),
     ("idle event durations stay restrained", testIdleEventDurationsStayRestrained),
+    ("talking starts with clearly open mouth", testTalkingStartsWithClearlyOpenMouth),
 ]
