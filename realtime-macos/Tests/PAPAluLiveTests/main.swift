@@ -4,6 +4,7 @@ do {
     let tests = mouthGateTests
         + windowScaleTests
         + idleAnimationPlanTests
+        + thoughtCloudPlanTests
     for (name, test) in tests {
         try test()
         print("PASS: \(name)")
