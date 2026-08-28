@@ -57,8 +57,8 @@ func testSwayAndBlinkRandomMappingStaysInApprovedRanges() throws {
     try expectEqual(maximum.duration, 1.15, "maximum sway duration")
     try expectEqual(minimum.holdDuration, 0.08, "minimum sway hold")
     try expectEqual(maximum.holdDuration, 0.25, "maximum sway hold")
-    try expectEqual(plan.blinkDelay(randomUnit: 0), 5.5, "minimum blink delay")
-    try expectEqual(plan.blinkDelay(randomUnit: 1), 9.0, "maximum blink delay")
+    try expectEqual(plan.blinkDelay(randomUnit: 0), 3.0, "minimum blink delay")
+    try expectEqual(plan.blinkDelay(randomUnit: 1), 5.0, "maximum blink delay")
 }
 
 func testRandomDelayMappingClampsInvalidInputs() throws {
@@ -78,7 +78,7 @@ func testRandomDelayMappingClampsInvalidInputs() throws {
     try expectEqual(minimum.holdDuration, 0.08, "non-finite hold random unit")
     try expectEqual(maximum.duration, 1.15, "large sway random unit")
     try expectEqual(maximum.holdDuration, 0.25, "large hold random unit")
-    try expectEqual(plan.blinkDelay(randomUnit: .nan), 5.5, "non-finite random unit")
+    try expectEqual(plan.blinkDelay(randomUnit: .nan), 3.0, "non-finite random unit")
 }
 
 func testIdleEventDurationsStayRestrained() throws {

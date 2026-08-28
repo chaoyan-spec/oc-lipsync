@@ -33,7 +33,7 @@ struct IdleAnimationConfiguration: Equatable {
         swayRotationDegrees: 1,
         swayDurationRange: 0.95...1.15,
         swayHoldRange: 0.08...0.25,
-        blinkDelayRange: 5.5...9.0
+        blinkDelayRange: 3.0...5.0
     )
 
     let baseFrame: Int
