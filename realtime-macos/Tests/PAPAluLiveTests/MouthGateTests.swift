@@ -18,6 +18,15 @@ func expectEqual<T: Equatable>(
 
 private let step = 0.01
 
+func testDefaultGateUsesApprovedMidSentenceProtection() throws {
+    let configuration = MouthGateConfiguration.default
+
+    try expectEqual(configuration.openThreshold, 0.020, "default open threshold")
+    try expectEqual(configuration.closeThreshold, 0.015, "default close threshold")
+    try expectEqual(configuration.smoothingFactor, 0.35, "default smoothing")
+    try expectEqual(configuration.releaseDelay, 0.30, "default release delay")
+}
+
 func testSilenceKeepsTheMouthIdle() throws {
     var gate = MouthGate()
 
@@ -71,6 +80,53 @@ func testShortSilenceDoesNotCloseTheMouth() throws {
     }
 }
 
+func testNaturalMidSentencePauseDoesNotCloseTheMouth() throws {
+    var gate = MouthGate()
+    try expectEqual(gate.update(rms: 0.10, duration: step), .talking, "speech attack")
+
+    for _ in 0..<20 {
+        try expectEqual(
+            gate.update(rms: 0, duration: step),
+            .talking,
+            "a 200ms phrase gap must remain talking"
+        )
+    }
+}
+
+func testSoftSpeechCanRestartAfterSilence() throws {
+    var gate = MouthGate()
+
+    try expectEqual(
+        gate.update(rms: 0.020, duration: step),
+        .talking,
+        "soft but intentional speech must open the mouth"
+    )
+}
+
+func testSubThresholdBackgroundNoiseStaysIdle() throws {
+    var gate = MouthGate()
+
+    for _ in 0..<100 {
+        try expectEqual(
+            gate.update(rms: 0.019, duration: step),
+            .idle,
+            "background sound below the open threshold must stay idle"
+        )
+    }
+}
+
+func testSilencePastNewReleaseDelayReturnsToIdle() throws {
+    var gate = MouthGate()
+    try expectEqual(gate.update(rms: 0.10, duration: step), .talking, "speech attack")
+
+    var state = MouthState.talking
+    for _ in 0..<50 {
+        state = gate.update(rms: 0, duration: step)
+    }
+
+    try expectEqual(state, .idle, "sustained silence must still return to idle")
+}
+
 func testSilencePastReleaseDelayReturnsToIdle() throws {
     var gate = MouthGate()
     try expectEqual(gate.update(rms: 0.10, duration: step), .talking, "speech attack")
@@ -116,6 +172,10 @@ func testHysteresisPreventsThresholdChatter() throws {
 }
 
 let mouthGateTests: [(String, () throws -> Void)] = [
+    (
+        "default gate protects mid-sentence speech",
+        testDefaultGateUsesApprovedMidSentenceProtection
+    ),
     ("silence keeps idle", testSilenceKeepsTheMouthIdle),
     ("speech enters talking", testClearSpeechEntersTalkingImmediately),
     (
@@ -123,6 +183,16 @@ let mouthGateTests: [(String, () throws -> Void)] = [
         testClearSpeechAfterSilenceEntersTalkingOnFirstBuffer
     ),
     ("short silence stays talking", testShortSilenceDoesNotCloseTheMouth),
+    (
+        "natural mid-sentence pause stays talking",
+        testNaturalMidSentencePauseDoesNotCloseTheMouth
+    ),
+    ("soft speech restarts talking", testSoftSpeechCanRestartAfterSilence),
+    ("sub-threshold noise stays idle", testSubThresholdBackgroundNoiseStaysIdle),
+    (
+        "new release delay still returns idle",
+        testSilencePastNewReleaseDelayReturnsToIdle
+    ),
     ("release returns idle", testSilencePastReleaseDelayReturnsToIdle),
     ("hysteresis prevents chatter", testHysteresisPreventsThresholdChatter),
 ]

@@ -5,10 +5,10 @@ enum MouthState: Equatable {
 
 struct MouthGateConfiguration: Equatable {
     static let `default` = MouthGateConfiguration(
-        openThreshold: 0.025,
+        openThreshold: 0.020,
         closeThreshold: 0.015,
         smoothingFactor: 0.35,
-        releaseDelay: 0.12
+        releaseDelay: 0.30
     )
 
     let openThreshold: Double
