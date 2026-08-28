@@ -20,3 +20,4 @@ xcrun swiftc -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$RES
 xcrun swiftc -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$RESOURCE_DIR" -framework AppKit -framework QuartzCore -framework AVFoundation -framework Vision "$SOURCE_DIR/AppDelegate.swift" "$SOURCE_DIR/MicrophoneMonitor.swift" "$SOURCE_DIR/CameraMonitor.swift" "$SOURCE_DIR/MouthGate.swift" "$SOURCE_DIR/IdleAnimationPlan.swift" "$SOURCE_DIR/WaveDetector.swift" "$SOURCE_DIR/ActionCoordinator.swift" "$SOURCE_DIR/PAPAluWindow.swift" "$SOURCE_DIR/WindowScale.swift" "$TEST_DIR/AppShellCompileTests.swift" -o "$TEMP_ROOT/PAPAluLiveContracts"
 
 echo "PAPAluLive app-shell compile test passed"
+"$SCRIPT_DIR/Tests/verify-camera-removed.sh"
