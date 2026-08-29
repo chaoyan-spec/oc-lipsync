@@ -56,6 +56,7 @@ for frame in 0 1 2 3 4 5 6 7; do
 done
 chmod +x "$CONTENTS/MacOS/PAPAluLive"
 plutil -lint "$CONTENTS/Info.plist" >/dev/null
+codesign --force --deep --sign - "$STAGED_APP"
 
 mkdir -p "$OUTPUT_DIR"
 if [[ -e "$OUTPUT_APP" ]]; then

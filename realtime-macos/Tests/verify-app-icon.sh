@@ -28,5 +28,6 @@ iconutil -c iconset "$ICNS_ICON" -o "$TEMP_DIR/AppIcon.iconset"
 cmp -s "$ICNS_ICON" "$APP_ICON"
 [[ -f "$APP_BUNDLE/Contents/Resources/Characters/CatMeme/idle.png" ]]
 [[ -f "$APP_BUNDLE/Contents/Resources/Characters/PAPAlu/0.png" ]]
+codesign --verify --deep --strict "$APP_BUNDLE"
 
 echo "Live character app bundle contract passed"
