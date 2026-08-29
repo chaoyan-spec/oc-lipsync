@@ -45,7 +45,7 @@ mkdir -p \
   "$CHARACTER_RESOURCES/CatMeme" \
   "$CHARACTER_RESOURCES/PAPAlu"
 
-xcrun swiftc -O -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$TEMP_ROOT/toolchain/usr/lib/swift" -framework AppKit -framework QuartzCore -framework AVFoundation "$SOURCE_DIR/AppDelegate.swift" "$SOURCE_DIR/MicrophoneMonitor.swift" "$SOURCE_DIR/MouthGate.swift" "$SOURCE_DIR/CharacterDefinition.swift" "$SOURCE_DIR/CharacterAssets.swift" "$SOURCE_DIR/CharacterRuntime.swift" "$SOURCE_DIR/IdleAnimationPlan.swift" "$SOURCE_DIR/ThoughtCloudPlan.swift" "$SOURCE_DIR/ThoughtCloudView.swift" "$SOURCE_DIR/CharacterWindow.swift" "$SOURCE_DIR/WindowScale.swift" -o "$CONTENTS/MacOS/PAPAluLive"
+xcrun swiftc -O -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$TEMP_ROOT/toolchain/usr/lib/swift" -framework AppKit -framework QuartzCore -framework AVFoundation "$SOURCE_DIR/AppDelegate.swift" "$SOURCE_DIR/MicrophoneMonitor.swift" "$SOURCE_DIR/MouthGate.swift" "$SOURCE_DIR/CharacterDefinition.swift" "$SOURCE_DIR/CharacterAssets.swift" "$SOURCE_DIR/CharacterRuntime.swift" "$SOURCE_DIR/CharacterImagePreparer.swift" "$SOURCE_DIR/CustomCharacterStore.swift" "$SOURCE_DIR/AppPreferences.swift" "$SOURCE_DIR/CharacterSettingsController.swift" "$SOURCE_DIR/IdleAnimationPlan.swift" "$SOURCE_DIR/ThoughtCloudPlan.swift" "$SOURCE_DIR/ThoughtCloudView.swift" "$SOURCE_DIR/CharacterWindow.swift" "$SOURCE_DIR/WindowScale.swift" -o "$CONTENTS/MacOS/PAPAluLive"
 
 cp "$SCRIPT_DIR/Resources/Info.plist" "$CONTENTS/Info.plist"
 cp "$ICON_FILE" "$CONTENTS/Resources/AppIcon.icns"

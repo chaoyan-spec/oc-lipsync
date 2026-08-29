@@ -31,3 +31,15 @@ func verifyWindowScaleActionsCompile(on window: CharacterWindow) {
     window.decreaseScale()
     window.resetScale()
 }
+
+func verifySettingsControllerCompiles(
+    preparer: CharacterImagePreparer,
+    store: CustomCharacterStore
+) {
+    let controller = CharacterSettingsController(
+        preparer: preparer,
+        store: store
+    )
+    controller.updateMouthState(.idle)
+    controller.onCharacterSaved = { _ in }
+}

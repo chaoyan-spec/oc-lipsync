@@ -1,6 +1,6 @@
 import AppKit
 
-enum CharacterID: String, Codable, Equatable {
+enum CharacterID: String, Codable, Equatable, Hashable {
     case catMeme
     case papalu
     case custom
