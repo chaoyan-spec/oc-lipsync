@@ -5,26 +5,28 @@ import AppKit
 
 func verifyAppShellContractsCompile() {
     let _: MicrophoneMonitor.Type = MicrophoneMonitor.self
-    let _: PAPAluWindow.Type = PAPAluWindow.self
+    let _: CharacterWindow.Type = CharacterWindow.self
+    let _: CharacterRuntime.Type = CharacterRuntime.self
     let _: AppDelegate.Type = AppDelegate.self
     let _: WindowScale.Type = WindowScale.self
     let _: ThoughtCloudView.Type = ThoughtCloudView.self
 }
 
-func verifyDisplayStatesCompile(on window: PAPAluWindow) {
+func verifyDisplayStatesCompile(on window: CharacterWindow) {
     window.setDisplayState(.idle)
     window.setDisplayState(.talking)
 }
 
-func verifyIdlePlanInjectionCompiles(resourceDirectory: URL) throws {
-    _ = try PAPAluWindow(
-        resourceDirectory: resourceDirectory,
-        idlePlan: IdleAnimationPlan(),
-        thoughtCloudPlan: ThoughtCloudPlan()
-    )
+func verifyCharacterSwitchCompiles(
+    on window: CharacterWindow,
+    assets: CharacterAssets
+) {
+    window.setCharacter(assets, currentState: .talking)
+    window.setDisplayState(.idle)
+    window.setContextMenu(NSMenu())
 }
 
-func verifyWindowScaleActionsCompile(on window: PAPAluWindow) {
+func verifyWindowScaleActionsCompile(on window: CharacterWindow) {
     window.increaseScale()
     window.decreaseScale()
     window.resetScale()

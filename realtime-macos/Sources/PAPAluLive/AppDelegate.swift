@@ -3,11 +3,11 @@ import Foundation
 
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var window: PAPAluWindow?
+    private var window: CharacterWindow?
     private var microphoneMonitor: MicrophoneMonitor?
     private var mouthGate = MouthGate()
     private var lastMicrophoneState = MouthState.idle
-    private var renderedState: PAPAluDisplayState?
+    private var renderedState: CharacterDisplayState?
     private var didShowError = false
 
     static func main() {
@@ -24,7 +24,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
-            let window = try PAPAluWindow()
+            guard let resourceURL = Bundle.main.resourceURL else {
+                throw CharacterAssetError.unreadableImage
+            }
+            let directory = resourceURL
+                .appendingPathComponent("Characters", isDirectory: true)
+                .appendingPathComponent("PAPAlu", isDirectory: true)
+            let assets = try CharacterAssets.load(
+                definition: .papalu,
+                directory: directory
+            )
+            let window = CharacterWindow(assets: assets)
             self.window = window
             render(.idle)
             window.orderFrontRegardless()
@@ -92,7 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         render(state == .talking ? .talking : .idle)
     }
 
-    private func render(_ state: PAPAluDisplayState) {
+    private func render(_ state: CharacterDisplayState) {
         guard state != renderedState else { return }
         renderedState = state
         window?.setDisplayState(state)

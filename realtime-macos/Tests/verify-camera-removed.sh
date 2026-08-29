@@ -35,7 +35,7 @@ assert_absent \
   "$REALTIME_DIR/Sources/PAPAluLive/AppDelegate.swift"
 assert_absent \
   'teaching|Teaching\.png|teachingImage' \
-  "$REALTIME_DIR/Sources/PAPAluLive/PAPAluWindow.swift"
+  "$REALTIME_DIR/Sources/PAPAluLive/CharacterWindow.swift"
 assert_absent \
   'CameraMonitor|HandPoseSample|teaching' \
   "$SCRIPT_DIR/PAPAluLiveTests/AppShellCompileTests.swift"

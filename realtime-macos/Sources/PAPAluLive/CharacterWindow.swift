@@ -1,25 +1,6 @@
 import AppKit
 import QuartzCore
 
-enum PAPAluDisplayState: Equatable {
-    case idle
-    case talking
-}
-
-enum PAPAluWindowError: LocalizedError {
-    case resourceDirectoryMissing
-    case frameMissing(Int)
-
-    var errorDescription: String? {
-        switch self {
-        case .resourceDirectoryMissing:
-            return "PAPAlu 动画资源目录不存在。"
-        case .frameMissing(let frame):
-            return "PAPAlu 动画第 \(frame) 帧缺失。"
-        }
-    }
-}
-
 private final class DraggableImageView: NSImageView {
     override var mouseDownCanMoveWindow: Bool { true }
 }
@@ -28,15 +9,10 @@ private final class DraggableContainerView: NSView {
     override var mouseDownCanMoveWindow: Bool { true }
 }
 
-final class PAPAluWindow: NSPanel {
-    struct Configuration {
-        static let defaultSize = NSSize(width: 288, height: 312)
-        static let talkingFrames = [2, 1, 3, 4, 6, 3]
-        static let talkingFramesPerSecond = 8.0
-    }
-
-    private let frames: [NSImage]
-    private let idlePlan: IdleAnimationPlan
+final class CharacterWindow: NSPanel {
+    private var assets: CharacterAssets
+    private var runtime: CharacterRuntime
+    private var idlePlan: IdleAnimationPlan
     private let thoughtCloudPlan: ThoughtCloudPlan
     private let containerView = DraggableContainerView()
     private let characterView = DraggableImageView()
@@ -49,35 +25,22 @@ final class PAPAluWindow: NSPanel {
     private var thoughtCloudDotTimer: Timer?
     private var thoughtCloudDotIndex = 0
     private var idleGeneration = 0
-    private var talkingFrameIndex = 0
-    private var displayState: PAPAluDisplayState?
+    private var hasRenderedState = false
     private var windowScale = WindowScale()
 
     init(
-        resourceDirectory: URL? = Bundle.main.resourceURL,
-        idlePlan: IdleAnimationPlan = IdleAnimationPlan(),
+        assets: CharacterAssets,
         thoughtCloudPlan: ThoughtCloudPlan = ThoughtCloudPlan()
-    ) throws {
-        self.idlePlan = idlePlan
+    ) {
+        self.assets = assets
+        runtime = CharacterRuntime(definition: assets.definition)
+        idlePlan = IdleAnimationPlan(
+            configuration: assets.definition.idleMotion
+        )
         self.thoughtCloudPlan = thoughtCloudPlan
         thoughtCloudView = ThoughtCloudView(plan: thoughtCloudPlan)
-        guard let resourceDirectory else {
-            throw PAPAluWindowError.resourceDirectoryMissing
-        }
 
-        var loadedFrames = [NSImage]()
-        for frame in 0..<8 {
-            let path = resourceDirectory
-                .appendingPathComponent("Frames", isDirectory: true)
-                .appendingPathComponent("\(frame).png")
-            guard let image = NSImage(contentsOf: path) else {
-                throw PAPAluWindowError.frameMissing(frame)
-            }
-            loadedFrames.append(image)
-        }
-        frames = loadedFrames
-
-        let size = Configuration.defaultSize
+        let size = assets.definition.defaultSize
         let origin = Self.defaultOrigin(for: size)
         super.init(
             contentRect: NSRect(origin: origin, size: size),
@@ -104,8 +67,8 @@ final class PAPAluWindow: NSPanel {
         characterView.autoresizingMask = [.width, .height]
         characterView.imageAlignment = .alignCenter
         characterView.imageScaling = .scaleProportionallyUpOrDown
-        characterView.image = frames[0]
         characterView.wantsLayer = true
+        showAsset(named: runtime.currentAssetName)
 
         thoughtCloudView.isHidden = true
         thoughtCloudView.alphaValue = 0
@@ -119,20 +82,40 @@ final class PAPAluWindow: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
-    func setDisplayState(_ state: PAPAluDisplayState) {
-        guard state != displayState else { return }
-        let previousState = displayState
-        displayState = state
+    func setDisplayState(_ state: CharacterDisplayState) {
+        guard !hasRenderedState || state != runtime.state else { return }
+        let previousState = runtime.state
+        hasRenderedState = true
+        runtime.setState(state)
         cancelAllAnimation()
 
         switch state {
         case .idle:
             startIdleAnimation(settlingFromTalking: previousState == .talking)
         case .talking:
-            talkingFrameIndex = 0
-            showTalkingFrame()
+            showAsset(named: runtime.currentAssetName)
             startAnimationTimer()
         }
+    }
+
+    func setCharacter(
+        _ assets: CharacterAssets,
+        currentState: CharacterDisplayState
+    ) {
+        cancelAllAnimation()
+        self.assets = assets
+        idlePlan = IdleAnimationPlan(
+            configuration: assets.definition.idleMotion
+        )
+        runtime.setCharacter(assets.definition, currentState: currentState)
+        hasRenderedState = true
+        applyDefaultAspectRatioWithoutMovingWindowCenter()
+        renderCurrentState()
+    }
+
+    func setContextMenu(_ menu: NSMenu) {
+        containerView.menu = menu
+        characterView.menu = menu
     }
 
     func increaseScale() {
@@ -150,31 +133,51 @@ final class PAPAluWindow: NSPanel {
         applyCurrentScale()
     }
 
-    private func applyCurrentScale() {
+    private func renderCurrentState() {
+        switch runtime.state {
+        case .idle:
+            startIdleAnimation(settlingFromTalking: false)
+        case .talking:
+            showAsset(named: runtime.currentAssetName)
+            startAnimationTimer()
+        }
+    }
+
+    private func applyDefaultAspectRatioWithoutMovingWindowCenter() {
         let center = NSPoint(x: frame.midX, y: frame.midY)
-        let size = NSSize(
-            width: Configuration.defaultSize.width * windowScale.factor,
-            height: Configuration.defaultSize.height * windowScale.factor
+        let size = scaledDefaultSize()
+        setFrame(
+            NSRect(
+                x: center.x - size.width / 2,
+                y: center.y - size.height / 2,
+                width: size.width,
+                height: size.height
+            ),
+            display: true,
+            animate: false
         )
-        let origin = NSPoint(
-            x: center.x - size.width / 2,
-            y: center.y - size.height / 2
-        )
-        setFrame(NSRect(origin: origin, size: size), display: true, animate: false)
         layoutThoughtCloud(for: size)
+    }
+
+    private func applyCurrentScale() {
+        applyDefaultAspectRatioWithoutMovingWindowCenter()
+    }
+
+    private func scaledDefaultSize() -> NSSize {
+        NSSize(
+            width: assets.definition.defaultSize.width * windowScale.factor,
+            height: assets.definition.defaultSize.height * windowScale.factor
+        )
     }
 
     private func startAnimationTimer() {
         animationTimer?.invalidate()
-        let timer = Timer(
-            timeInterval: 1 / Configuration.talkingFramesPerSecond,
-            repeats: true
-        ) { [weak self] _ in
+        let frameRate = max(1, assets.definition.talkingFramesPerSecond)
+        let timer = Timer(timeInterval: 1 / frameRate, repeats: true) {
+            [weak self] _ in
             guard let self else { return }
-            self.talkingFrameIndex = (
-                self.talkingFrameIndex + 1
-            ) % Configuration.talkingFrames.count
-            self.showTalkingFrame()
+            self.runtime.advanceTalkingFrame()
+            self.showAsset(named: self.runtime.currentAssetName)
         }
         RunLoop.main.add(timer, forMode: .common)
         animationTimer = timer
@@ -194,44 +197,104 @@ final class PAPAluWindow: NSPanel {
         resetCharacterTransform()
     }
 
-    private func showTalkingFrame() {
-        let frame = Configuration.talkingFrames[talkingFrameIndex]
-        characterView.image = frames[frame]
+    private func showAsset(named name: String) {
+        characterView.image = assets.images[name]
     }
 
     private func startIdleAnimation(settlingFromTalking: Bool) {
         let generation = idleGeneration
         scheduleThoughtCloud(generation: generation)
+
         let beginEvents: () -> Void = { [weak self] in
             guard let self else { return }
             self.scheduleNextBlink(generation: generation)
-            let firstDirection: IdleSwayDirection = Bool.random()
-                ? .left
-                : .right
-            self.runNextSway(
-                direction: firstDirection,
-                generation: generation
-            )
+            let direction: IdleSwayDirection = Bool.random() ? .left : .right
+            self.runNextSway(direction: direction, generation: generation)
         }
 
-        if settlingFromTalking {
-            playIdleSequence(
-                idlePlan.configuration.settleSteps,
+        let steps = assets.definition.settleSteps
+        if settlingFromTalking, !steps.isEmpty {
+            playFrameSequence(
+                steps,
                 generation: generation,
                 completion: beginEvents
             )
         } else {
-            characterView.image = frames[idlePlan.configuration.baseFrame]
+            showAsset(named: assets.definition.idleAssetName)
             beginEvents()
         }
     }
 
+    private func scheduleNextBlink(generation: Int) {
+        guard runtime.state == .idle,
+              generation == idleGeneration,
+              let range = assets.definition.blinkDelayRange,
+              !assets.definition.blinkSteps.isEmpty else { return }
+
+        idleBlinkTimer = makeTimer(after: Double.random(in: range)) {
+            [weak self] in
+            guard let self,
+                  self.runtime.state == .idle,
+                  generation == self.idleGeneration else { return }
+            self.playFrameSequence(
+                self.assets.definition.blinkSteps,
+                generation: generation
+            ) { [weak self] in
+                self?.scheduleNextBlink(generation: generation)
+            }
+        }
+    }
+
+    private func runNextSway(
+        direction: IdleSwayDirection,
+        generation: Int
+    ) {
+        guard runtime.state == .idle, generation == idleGeneration else { return }
+        let step = idlePlan.swayStep(
+            direction: direction,
+            durationRandomUnit: Double.random(in: 0...1),
+            holdRandomUnit: Double.random(in: 0...1)
+        )
+        animateCharacter(to: step)
+        idleSwayTimer = makeTimer(after: step.duration + step.holdDuration) {
+            [weak self] in
+            self?.runNextSway(
+                direction: direction == .left ? .right : .left,
+                generation: generation
+            )
+        }
+    }
+
+    private func playFrameSequence(
+        _ steps: [CharacterFrameStep],
+        index: Int = 0,
+        generation: Int,
+        completion: @escaping () -> Void
+    ) {
+        guard runtime.state == .idle, generation == idleGeneration else { return }
+        guard index < steps.count else {
+            completion()
+            return
+        }
+        let step = steps[index]
+        showAsset(named: step.assetName)
+        idleSequenceTimer = makeTimer(after: step.duration) { [weak self] in
+            self?.playFrameSequence(
+                steps,
+                index: index + 1,
+                generation: generation,
+                completion: completion
+            )
+        }
+    }
+
     private func scheduleThoughtCloud(generation: Int) {
+        guard assets.definition.thoughtCloudEnabled else { return }
         thoughtCloudDelayTimer = makeTimer(
             after: thoughtCloudPlan.configuration.appearanceDelay
         ) { [weak self] in
             guard let self,
-                  self.displayState == .idle,
+                  self.runtime.state == .idle,
                   generation == self.idleGeneration else { return }
             self.showThoughtCloud(generation: generation)
         }
@@ -253,14 +316,12 @@ final class PAPAluWindow: NSPanel {
             repeats: true
         ) { [weak self] _ in
             guard let self,
-                  self.displayState == .idle,
+                  self.runtime.state == .idle,
                   generation == self.idleGeneration else { return }
             self.thoughtCloudDotIndex = self.thoughtCloudPlan.nextDotIndex(
                 after: self.thoughtCloudDotIndex
             )
-            self.thoughtCloudView.setActiveDotIndex(
-                self.thoughtCloudDotIndex
-            )
+            self.thoughtCloudView.setActiveDotIndex(self.thoughtCloudDotIndex)
         }
         thoughtCloudDotIndex = 0
         RunLoop.main.add(timer, forMode: .common)
@@ -280,55 +341,16 @@ final class PAPAluWindow: NSPanel {
     }
 
     private func layoutThoughtCloud(for windowSize: NSSize) {
-        let frame = thoughtCloudPlan.frame(
+        let cloudFrame = thoughtCloudPlan.frame(
             windowWidth: windowSize.width,
             windowHeight: windowSize.height
         )
         thoughtCloudView.frame = NSRect(
-            x: frame.x,
-            y: frame.y,
-            width: frame.width,
-            height: frame.height
+            x: cloudFrame.x,
+            y: cloudFrame.y,
+            width: cloudFrame.width,
+            height: cloudFrame.height
         )
-    }
-
-    private func scheduleNextBlink(generation: Int) {
-        guard displayState == .idle, generation == idleGeneration else { return }
-
-        let delay = idlePlan.blinkDelay(
-            randomUnit: Double.random(in: 0...1)
-        )
-        idleBlinkTimer = makeTimer(after: delay) { [weak self] in
-            guard let self else { return }
-            self.playIdleSequence(
-                self.idlePlan.configuration.blinkSteps,
-                generation: generation
-            ) { [weak self] in
-                self?.scheduleNextBlink(generation: generation)
-            }
-        }
-    }
-
-    private func runNextSway(
-        direction: IdleSwayDirection,
-        generation: Int
-    ) {
-        guard displayState == .idle, generation == idleGeneration else { return }
-        let step = idlePlan.swayStep(
-            direction: direction,
-            durationRandomUnit: Double.random(in: 0...1),
-            holdRandomUnit: Double.random(in: 0...1)
-        )
-        animateCharacter(to: step)
-
-        idleSwayTimer = makeTimer(
-            after: step.duration + step.holdDuration
-        ) { [weak self] in
-            self?.runNextSway(
-                direction: direction == .left ? .right : .left,
-                generation: generation
-            )
-        }
     }
 
     private func animateCharacter(to step: IdleSwayStep) {
@@ -351,50 +373,23 @@ final class PAPAluWindow: NSPanel {
         CATransaction.setDisableActions(true)
         layer.transform = transform
         CATransaction.commit()
-        layer.add(animation, forKey: "papaluIdleSway")
+        layer.add(animation, forKey: "characterIdleSway")
     }
 
     private func resetCharacterTransform() {
         guard let layer = characterView.layer else { return }
-        layer.removeAnimation(forKey: "papaluIdleSway")
+        layer.removeAnimation(forKey: "characterIdleSway")
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         layer.transform = CATransform3DIdentity
         CATransaction.commit()
     }
 
-    private func playIdleSequence(
-        _ steps: [IdleFrameStep],
-        index: Int = 0,
-        generation: Int,
-        completion: @escaping () -> Void
-    ) {
-        guard displayState == .idle, generation == idleGeneration else { return }
-        guard index < steps.count else {
-            completion()
-            return
-        }
-
-        let step = steps[index]
-        characterView.image = frames[step.frame]
-        idleSequenceTimer = makeTimer(after: step.duration) { [weak self] in
-            self?.playIdleSequence(
-                steps,
-                index: index + 1,
-                generation: generation,
-                completion: completion
-            )
-        }
-    }
-
     private func makeTimer(
         after delay: Double,
         action: @escaping () -> Void
     ) -> Timer {
-        let timer = Timer(
-            timeInterval: max(0, delay),
-            repeats: false
-        ) { _ in
+        let timer = Timer(timeInterval: max(0, delay), repeats: false) { _ in
             action()
         }
         RunLoop.main.add(timer, forMode: .common)
