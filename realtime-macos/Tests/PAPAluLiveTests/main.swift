@@ -5,6 +5,7 @@ do {
         + windowScaleTests
         + idleAnimationPlanTests
         + thoughtCloudPlanTests
+        + characterDefinitionTests
     for (name, test) in tests {
         try test()
         print("PASS: \(name)")
