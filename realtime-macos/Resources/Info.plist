@@ -5,17 +5,17 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>zh_CN</string>
     <key>CFBundleDisplayName</key>
-    <string>PAPAlu 实时口型</string>
+    <string>悬浮说话角色</string>
     <key>CFBundleExecutable</key>
     <string>PAPAluLive</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon.icns</string>
     <key>CFBundleIdentifier</key>
-    <string>com.chaoyan.papalu-live</string>
+    <string>com.chaoyan.live-character</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>PAPAlu 实时口型</string>
+    <string>悬浮说话角色</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -27,7 +27,7 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>
-    <string>麦克风音量仅用于实时驱动 PAPAlu 嘴型，不会保存或上传录音。</string>
+    <string>麦克风音量仅用于实时驱动悬浮角色口型，不会保存或上传录音。</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>

@@ -8,7 +8,8 @@ REPO_ROOT="$(cd "$REALTIME_DIR/.." && pwd)"
 MASTER_ICON="$REALTIME_DIR/Resources/AppIcon-1024.png"
 ICNS_ICON="$REALTIME_DIR/Resources/AppIcon.icns"
 ICON_GENERATOR="$REALTIME_DIR/generate-app-icon.swift"
-APP_ICON="$REPO_ROOT/outputs/PAPAlu实时口型.app/Contents/Resources/AppIcon.icns"
+APP_BUNDLE="$REPO_ROOT/outputs/悬浮说话角色.app"
+APP_ICON="$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/papalu-icon-test.XXXXXX")"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
@@ -22,7 +23,10 @@ grep -Fq 'in: NSRect(x: 152, y: 112, width: 720, height: 780)' "$ICON_GENERATOR"
 iconutil -c iconset "$ICNS_ICON" -o "$TEMP_DIR/AppIcon.iconset"
 [[ -f "$TEMP_DIR/AppIcon.iconset/icon_512x512@2x.png" ]]
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$REALTIME_DIR/Resources/Info.plist")" == "AppIcon.icns" ]]
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$REALTIME_DIR/Resources/Info.plist")" == "悬浮说话角色" ]]
 [[ -f "$APP_ICON" ]]
 cmp -s "$ICNS_ICON" "$APP_ICON"
+[[ -f "$APP_BUNDLE/Contents/Resources/Characters/CatMeme/idle.png" ]]
+[[ -f "$APP_BUNDLE/Contents/Resources/Characters/PAPAlu/0.png" ]]
 
-echo "PAPAlu app icon contract passed"
+echo "Live character app bundle contract passed"

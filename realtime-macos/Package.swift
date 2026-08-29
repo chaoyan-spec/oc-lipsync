@@ -3,12 +3,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "PAPAluLive",
+    name: "LiveCharacter",
     platforms: [
         .macOS(.v13),
     ],
     products: [
-        .executable(name: "PAPAluLive", targets: ["PAPAluLive"]),
+        .executable(name: "LiveCharacter", targets: ["PAPAluLive"]),
     ],
     targets: [
         .executableTarget(name: "PAPAluLive"),
