@@ -23,3 +23,4 @@ xcrun swiftc -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$RES
 echo "PAPAluLive app-shell compile test passed"
 "$SCRIPT_DIR/Tests/verify-camera-removed.sh"
 "$SCRIPT_DIR/Tests/verify-app-icon.sh"
+"$SCRIPT_DIR/Tests/verify-character-resources.sh"

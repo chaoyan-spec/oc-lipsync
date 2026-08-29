@@ -29,9 +29,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             let directory = resourceURL
                 .appendingPathComponent("Characters", isDirectory: true)
-                .appendingPathComponent("PAPAlu", isDirectory: true)
+                .appendingPathComponent("CatMeme", isDirectory: true)
             let assets = try CharacterAssets.load(
-                definition: .papalu,
+                definition: .catMeme,
                 directory: directory
             )
             let window = CharacterWindow(assets: assets)
