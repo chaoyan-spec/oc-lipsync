@@ -7,6 +7,8 @@ do {
         + thoughtCloudPlanTests
         + characterDefinitionTests
         + characterRuntimeTests
+        + characterImagePreparerTests
+        + customCharacterStoreTests
     for (name, test) in tests {
         try test()
         print("PASS: \(name)")
