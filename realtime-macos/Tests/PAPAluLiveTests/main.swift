@@ -6,6 +6,7 @@ do {
         + idleAnimationPlanTests
         + thoughtCloudPlanTests
         + characterDefinitionTests
+        + characterRuntimeTests
     for (name, test) in tests {
         try test()
         print("PASS: \(name)")
