@@ -187,9 +187,15 @@ final class CharacterSettingsController: NSWindowController {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.message = slot == .idle ? "选择闭嘴 PNG" : "选择张嘴 PNG"
-        panel.begin { [weak self] response in
+        let completion: (NSApplication.ModalResponse) -> Void = {
+            [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             self?.accept(url: url, for: slot)
+        }
+        if let hostWindow = window {
+            panel.beginSheetModal(for: hostWindow, completionHandler: completion)
+        } else {
+            panel.begin(completionHandler: completion)
         }
     }
 
