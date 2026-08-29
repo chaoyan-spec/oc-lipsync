@@ -10,6 +10,8 @@ private final class DraggableContainerView: NSView {
 }
 
 final class CharacterWindow: NSPanel {
+    var onPlacementChanged: ((NSPoint, Double) -> Void)?
+
     private var assets: CharacterAssets
     private var runtime: CharacterRuntime
     private var idlePlan: IdleAnimationPlan
@@ -82,6 +84,13 @@ final class CharacterWindow: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
+    var currentScaleFactor: Double { windowScale.factor }
+
+    override func setFrameOrigin(_ point: NSPoint) {
+        super.setFrameOrigin(point)
+        onPlacementChanged?(frame.origin, windowScale.factor)
+    }
+
     func setDisplayState(_ state: CharacterDisplayState) {
         guard !hasRenderedState || state != runtime.state else { return }
         let previousState = runtime.state
@@ -133,6 +142,28 @@ final class CharacterWindow: NSPanel {
         applyCurrentScale()
     }
 
+    func applyScaleFactor(_ factor: Double) {
+        windowScale.setFactor(factor)
+        applyCurrentScale()
+    }
+
+    func restoreOrigin(_ origin: NSPoint) {
+        let targetScreen = NSScreen.screens.first {
+            $0.visibleFrame.contains(origin)
+        } ?? NSScreen.main
+        guard let visibleFrame = targetScreen?.visibleFrame else {
+            setFrameOrigin(origin)
+            return
+        }
+        let maximumX = max(visibleFrame.minX, visibleFrame.maxX - frame.width)
+        let maximumY = max(visibleFrame.minY, visibleFrame.maxY - frame.height)
+        let clamped = NSPoint(
+            x: min(maximumX, max(visibleFrame.minX, origin.x)),
+            y: min(maximumY, max(visibleFrame.minY, origin.y))
+        )
+        setFrameOrigin(clamped)
+    }
+
     private func renderCurrentState() {
         switch runtime.state {
         case .idle:
@@ -157,6 +188,7 @@ final class CharacterWindow: NSPanel {
             animate: false
         )
         layoutThoughtCloud(for: size)
+        onPlacementChanged?(frame.origin, windowScale.factor)
     }
 
     private func applyCurrentScale() {

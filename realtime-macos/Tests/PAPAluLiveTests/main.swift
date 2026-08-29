@@ -9,6 +9,7 @@ do {
         + characterRuntimeTests
         + characterImagePreparerTests
         + customCharacterStoreTests
+        + appPreferencesTests
     for (name, test) in tests {
         try test()
         print("PASS: \(name)")

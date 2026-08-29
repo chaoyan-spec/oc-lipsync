@@ -6,6 +6,10 @@ struct WindowScale {
 
     private(set) var factor = Self.defaultFactor
 
+    init(factor: Double = Self.defaultFactor) {
+        self.factor = Self.clamped(factor)
+    }
+
     mutating func increase() {
         factor = min(Self.maximum, rounded(factor + Self.step))
     }
@@ -18,7 +22,16 @@ struct WindowScale {
         factor = Self.defaultFactor
     }
 
+    mutating func setFactor(_ value: Double) {
+        factor = Self.clamped(value)
+    }
+
     private func rounded(_ value: Double) -> Double {
         (value * 10).rounded() / 10
+    }
+
+    private static func clamped(_ value: Double) -> Double {
+        guard value.isFinite else { return defaultFactor }
+        return min(maximum, max(minimum, value))
     }
 }
