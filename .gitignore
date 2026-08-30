@@ -9,4 +9,6 @@ outputs/*.zip
 outputs/*.app/
 realtime-macos/.build/
 realtime-macos/.swiftpm/
+realtime-windows/**/bin/
+realtime-windows/**/obj/
 *.log
