@@ -42,6 +42,37 @@ func testTwoFrameCustomCharacterHasNoOptionalAnimationRequirements() throws {
     try expectEqual(custom.thoughtCloudEnabled, false, "custom cloud")
 }
 
+func testFirstCatPackIsAnOrderedTwoFrameBundledCatalog() throws {
+    let bundled = CharacterDefinition.bundledCharacters
+    try expectEqual(
+        bundled.map(\.definition.id),
+        [.catMeme, .huhCat, .happyCat, .screamingCat, .papalu],
+        "bundled character order"
+    )
+    try expectEqual(
+        bundled.map(\.resourceDirectoryName),
+        ["CatMeme", "HuhCat", "HappyCat", "ScreamingCat", "PAPAlu"],
+        "bundled resource directories"
+    )
+
+    let newCats = bundled.dropFirst().dropLast().map(\.definition)
+    try expectEqual(
+        newCats.map(\.name),
+        ["Huh 猫", "Happy 猫", "抱头尖叫猫"],
+        "first cat pack names"
+    )
+    for cat in newCats {
+        try expectEqual(cat.idleAssetName, "idle", "\(cat.name) idle")
+        try expectEqual(
+            Set(cat.talkingAssetNames),
+            Set(["idle", "talking"]),
+            "\(cat.name) mouth assets"
+        )
+        try expectEqual(cat.blinkSteps.isEmpty, true, "\(cat.name) blink")
+        try expectEqual(cat.thoughtCloudEnabled, true, "\(cat.name) cloud")
+    }
+}
+
 let characterDefinitionTests: [(String, () throws -> Void)] = [
     (
         "cat uses two unique assets without fake frame requirements",
@@ -54,5 +85,9 @@ let characterDefinitionTests: [(String, () throws -> Void)] = [
     (
         "two-frame custom character has no optional requirements",
         testTwoFrameCustomCharacterHasNoOptionalAnimationRequirements
+    ),
+    (
+        "first cat pack is an ordered two-frame bundled catalog",
+        testFirstCatPackIsAnOrderedTwoFrameBundledCatalog
     ),
 ]

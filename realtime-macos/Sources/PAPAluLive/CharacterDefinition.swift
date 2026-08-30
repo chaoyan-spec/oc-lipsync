@@ -2,8 +2,16 @@ import AppKit
 
 enum CharacterID: String, Codable, Equatable, Hashable {
     case catMeme
+    case huhCat
+    case happyCat
+    case screamingCat
     case papalu
     case custom
+}
+
+struct BundledCharacterDefinition: Equatable {
+    let definition: CharacterDefinition
+    let resourceDirectoryName: String
 }
 
 struct CharacterFrameStep: Equatable {
@@ -38,23 +46,24 @@ struct CharacterDefinition: Equatable {
     let thoughtCloudEnabled: Bool
     let defaultSize: NSSize
 
-    static let catMeme = CharacterDefinition(
+    static let catMeme = twoFrameBuiltIn(
         id: .catMeme,
-        name: "猫 Meme",
-        idleAssetName: "idle",
-        talkingAssetNames: [
-            "talking", "idle", "talking", "idle", "talking", "talking",
-        ],
-        talkingFramesPerSecond: 8,
-        blinkSteps: [],
-        settleSteps: [
-            CharacterFrameStep(assetName: "talking", duration: 0.08),
-            CharacterFrameStep(assetName: "idle", duration: 0.08),
-        ],
-        blinkDelayRange: nil,
-        idleMotion: .gentle,
-        thoughtCloudEnabled: true,
-        defaultSize: NSSize(width: 288, height: 312)
+        name: "猫 Meme"
+    )
+
+    static let huhCat = twoFrameBuiltIn(
+        id: .huhCat,
+        name: "Huh 猫"
+    )
+
+    static let happyCat = twoFrameBuiltIn(
+        id: .happyCat,
+        name: "Happy 猫"
+    )
+
+    static let screamingCat = twoFrameBuiltIn(
+        id: .screamingCat,
+        name: "抱头尖叫猫"
     )
 
     static let papalu = CharacterDefinition(
@@ -89,6 +98,53 @@ struct CharacterDefinition: Equatable {
             blinkDelayRange: nil,
             idleMotion: .gentle,
             thoughtCloudEnabled: false,
+            defaultSize: NSSize(width: 288, height: 312)
+        )
+    }
+
+    static let bundledCharacters = [
+        BundledCharacterDefinition(
+            definition: .catMeme,
+            resourceDirectoryName: "CatMeme"
+        ),
+        BundledCharacterDefinition(
+            definition: .huhCat,
+            resourceDirectoryName: "HuhCat"
+        ),
+        BundledCharacterDefinition(
+            definition: .happyCat,
+            resourceDirectoryName: "HappyCat"
+        ),
+        BundledCharacterDefinition(
+            definition: .screamingCat,
+            resourceDirectoryName: "ScreamingCat"
+        ),
+        BundledCharacterDefinition(
+            definition: .papalu,
+            resourceDirectoryName: "PAPAlu"
+        ),
+    ]
+
+    private static func twoFrameBuiltIn(
+        id: CharacterID,
+        name: String
+    ) -> CharacterDefinition {
+        CharacterDefinition(
+            id: id,
+            name: name,
+            idleAssetName: "idle",
+            talkingAssetNames: [
+                "talking", "idle", "talking", "idle", "talking", "talking",
+            ],
+            talkingFramesPerSecond: 8,
+            blinkSteps: [],
+            settleSteps: [
+                CharacterFrameStep(assetName: "talking", duration: 0.08),
+                CharacterFrameStep(assetName: "idle", duration: 0.08),
+            ],
+            blinkDelayRange: nil,
+            idleMotion: .gentle,
+            thoughtCloudEnabled: true,
             defaultSize: NSSize(width: 288, height: 312)
         )
     }
