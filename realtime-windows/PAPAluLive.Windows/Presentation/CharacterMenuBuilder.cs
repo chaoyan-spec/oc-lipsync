@@ -56,9 +56,20 @@ public sealed class CharacterMenuBuilder
         Menu.Opened += (_, _) => RefreshChecks();
     }
 
-    public void SetCustomAvailable(bool available)
+    public void SetCustomAvailable(
+        bool available,
+        ImageSource? thumbnail = null)
     {
         customItem.IsEnabled = available;
+        customItem.Icon = thumbnail is null
+            ? null
+            : new Image
+            {
+                Source = thumbnail,
+                Width = 28,
+                Height = 28,
+                Stretch = Stretch.Uniform,
+            };
         RefreshChecks();
     }
 
