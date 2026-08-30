@@ -8,6 +8,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <ApplicationIcon>Resources/PAPAluLive.ico</ApplicationIcon>
+    <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="Resources/PAPAluLive.ico" />
     <Resource Include="../../realtime-macos/Resources/Characters/**/*.png">
       <Link>Resources/Characters/%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Resource>

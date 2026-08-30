@@ -12,7 +12,7 @@
     Topmost="True"
     ResizeMode="NoResize"
     ShowInTaskbar="True"
-    Icon="pack://application:,,,/Resources/AppIcon.png"
+    Icon="pack://application:,,,/Resources/PAPAluLive.ico"
     MouseLeftButtonDown="OnMouseLeftButtonDown"
     SizeChanged="OnSizeChanged">
     <Grid Background="Transparent">

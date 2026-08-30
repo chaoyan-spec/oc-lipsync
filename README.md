@@ -43,6 +43,18 @@ open "outputs/悬浮说话角色.app"
 
 原有离线网页 OC Lip Sync 工具保持不变，仍可按下面的方式导入音频并导出剪映透明 MOV。
 
+## 悬浮说话角色（Windows V1）
+
+Windows 10 / 11 x64 版本保留相同的核心使用链路：打开透明悬浮角色，用默认麦克风讲话，再通过 OBS“显示器采集”录制屏幕。它使用原生 WPF 窗口和 WASAPI 麦克风输入，内置同一套 PAPAlu 与猫咪 PNG，也支持导入闭嘴、张嘴两张自定义 PNG。
+
+在 Windows 上安装 .NET 10 SDK 后运行：
+
+```powershell
+.\realtime-windows\build-windows.ps1
+```
+
+验收压缩包生成在 `outputs\windows\悬浮说话角色-win-x64.zip`。具体启动、麦克风权限、OBS 录制和已知限制见 [Windows 使用说明](realtime-windows/README.md)。macOS App 和原有离线网页工具不受影响。
+
 ## 开始使用
 
 1. 双击 `启动OC口播机.command`；也可以在终端进入本目录后运行 `npm start`。
