@@ -7,18 +7,22 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 OUTPUT_DIR="$REPO_ROOT/outputs"
 OUTPUT_APP="$OUTPUT_DIR/悬浮说话角色.app"
 SOURCE_DIR="$SCRIPT_DIR/Sources/PAPAluLive"
-CAT_DIR="$SCRIPT_DIR/Resources/Characters/CatMeme"
+CHARACTER_SOURCE_ROOT="$SCRIPT_DIR/Resources/Characters"
+TWO_FRAME_CHARACTER_DIRS=(CatMeme HuhCat HappyCat ScreamingCat)
 PAPALU_DIR="$REPO_ROOT/public/papalu-talking/frames"
 ICON_FILE="$SCRIPT_DIR/Resources/AppIcon.icns"
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/papalu-live-build.XXXXXX")"
 trap 'rm -rf "$TEMP_ROOT"' EXIT
 export CLANG_MODULE_CACHE_PATH="$TEMP_ROOT/module-cache"
 
-for asset in idle talking; do
-  if [[ ! -f "$CAT_DIR/$asset.png" ]]; then
-    echo "Missing built-in cat asset: $CAT_DIR/$asset.png" >&2
-    exit 1
-  fi
+for directory in "${TWO_FRAME_CHARACTER_DIRS[@]}"; do
+  for asset in idle talking; do
+    file="$CHARACTER_SOURCE_ROOT/$directory/$asset.png"
+    if [[ ! -f "$file" ]]; then
+      echo "Missing built-in character asset: $file" >&2
+      exit 1
+    fi
+  done
 done
 
 for frame in 0 1 2 3 4 5 6 7; do
@@ -42,15 +46,22 @@ CONTENTS="$STAGED_APP/Contents"
 CHARACTER_RESOURCES="$CONTENTS/Resources/Characters"
 mkdir -p \
   "$CONTENTS/MacOS" \
-  "$CHARACTER_RESOURCES/CatMeme" \
   "$CHARACTER_RESOURCES/PAPAlu"
+for directory in "${TWO_FRAME_CHARACTER_DIRS[@]}"; do
+  mkdir -p "$CHARACTER_RESOURCES/$directory"
+done
 
 xcrun swiftc -O -swift-version 5 -target arm64-apple-macosx13.0 -resource-dir "$TEMP_ROOT/toolchain/usr/lib/swift" -framework AppKit -framework QuartzCore -framework AVFoundation "$SOURCE_DIR/AppDelegate.swift" "$SOURCE_DIR/MicrophoneMonitor.swift" "$SOURCE_DIR/MouthGate.swift" "$SOURCE_DIR/CharacterDefinition.swift" "$SOURCE_DIR/CharacterAssets.swift" "$SOURCE_DIR/CharacterRuntime.swift" "$SOURCE_DIR/CharacterImagePreparer.swift" "$SOURCE_DIR/CustomCharacterStore.swift" "$SOURCE_DIR/AppPreferences.swift" "$SOURCE_DIR/CharacterMenuItemFactory.swift" "$SOURCE_DIR/CharacterSettingsController.swift" "$SOURCE_DIR/IdleAnimationPlan.swift" "$SOURCE_DIR/ThoughtCloudPlan.swift" "$SOURCE_DIR/ThoughtCloudView.swift" "$SOURCE_DIR/CharacterWindow.swift" "$SOURCE_DIR/WindowScale.swift" -o "$CONTENTS/MacOS/PAPAluLive"
 
 cp "$SCRIPT_DIR/Resources/Info.plist" "$CONTENTS/Info.plist"
 cp "$ICON_FILE" "$CONTENTS/Resources/AppIcon.icns"
-cp "$CAT_DIR/idle.png" "$CHARACTER_RESOURCES/CatMeme/idle.png"
-cp "$CAT_DIR/talking.png" "$CHARACTER_RESOURCES/CatMeme/talking.png"
+for directory in "${TWO_FRAME_CHARACTER_DIRS[@]}"; do
+  for asset in idle talking; do
+    cp \
+      "$CHARACTER_SOURCE_ROOT/$directory/$asset.png" \
+      "$CHARACTER_RESOURCES/$directory/$asset.png"
+  done
+done
 for frame in 0 1 2 3 4 5 6 7; do
   cp "$PAPALU_DIR/$frame.png" "$CHARACTER_RESOURCES/PAPAlu/$frame.png"
 done

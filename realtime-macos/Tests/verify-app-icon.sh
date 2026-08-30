@@ -28,6 +28,15 @@ iconutil -c iconset "$ICNS_ICON" -o "$TEMP_DIR/AppIcon.iconset"
 cmp -s "$ICNS_ICON" "$APP_ICON"
 [[ -f "$APP_BUNDLE/Contents/Resources/Characters/CatMeme/idle.png" ]]
 [[ -f "$APP_BUNDLE/Contents/Resources/Characters/PAPAlu/0.png" ]]
+for directory in HuhCat HappyCat ScreamingCat; do
+  for asset in idle talking; do
+    file="$APP_BUNDLE/Contents/Resources/Characters/$directory/$asset.png"
+    if [[ ! -f "$file" ]]; then
+      echo "Missing bundled character asset: $file" >&2
+      exit 1
+    fi
+  done
+done
 codesign --verify --deep --strict "$APP_BUNDLE"
 
 echo "Live character app bundle contract passed"
