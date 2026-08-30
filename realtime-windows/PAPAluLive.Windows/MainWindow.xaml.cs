@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private CharacterAssets? customAssets;
     private CharacterId selectedCharacterId;
     private CharacterDisplayState microphoneDisplayState = CharacterDisplayState.Idle;
+    private bool microphoneFaultShown;
 
     public MainWindow()
     {
@@ -110,13 +111,24 @@ public partial class MainWindow : Window
 
     private void OnMicrophoneFaulted(Exception exception)
     {
-        Dispatcher.BeginInvoke(() => MessageBox.Show(
-            this,
-            "无法读取默认麦克风。请在 Windows 设置 → 隐私和安全性 → 麦克风中允许桌面应用访问麦克风，然后重新打开 PAPAlu Live。\n\n" +
-            exception.Message,
-            "PAPAlu Live 麦克风不可用",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information));
+        Dispatcher.BeginInvoke(() =>
+        {
+            microphoneDisplayState = CharacterDisplayState.Idle;
+            animator.SetState(CharacterDisplayState.Idle);
+            if (microphoneFaultShown)
+            {
+                return;
+            }
+
+            microphoneFaultShown = true;
+            MessageBox.Show(
+                this,
+                "无法读取默认麦克风。请在 Windows 设置 → 隐私和安全性 → 麦克风中允许桌面应用访问麦克风，然后重新打开 PAPAlu Live。\n\n" +
+                exception.Message,
+                "PAPAlu Live 麦克风不可用",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        });
     }
 
     private void ShowCurrentFrame()
@@ -229,16 +241,11 @@ public partial class MainWindow : Window
 
     private void RestorePosition(AppSettingsData settings)
     {
-        if (settings.Left is not null && settings.Top is not null)
-        {
-            Left = settings.Left.Value;
-            Top = settings.Top.Value;
-            return;
-        }
-
-        var workArea = SystemParameters.WorkArea;
-        Left = workArea.Right - Width - 48;
-        Top = workArea.Bottom - Height - 48;
+        WindowPlacement.Restore(
+            this,
+            settings.Left,
+            settings.Top,
+            defaultMargin: 48);
     }
 
     private void SaveSettings()

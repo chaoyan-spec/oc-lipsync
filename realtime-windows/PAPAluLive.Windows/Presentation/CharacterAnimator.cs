@@ -15,6 +15,7 @@ public sealed class CharacterAnimator : IDisposable
     private readonly RotateTransform rotation = new();
     private readonly Random random = new();
     private CancellationTokenSource? animationCancellation;
+    private int animationGeneration;
     private bool started;
 
     public CharacterDisplayState State => runtime.State;
@@ -86,68 +87,86 @@ public sealed class CharacterAnimator : IDisposable
         CancelCurrentAnimation();
         animationCancellation = new CancellationTokenSource();
         var token = animationCancellation.Token;
+        var generation = animationGeneration;
 
         if (runtime.State == CharacterDisplayState.Talking)
         {
-            showFrame(runtime.CurrentAssetName);
-            _ = RunSafelyAsync(() => RunTalkingAsync(token), token);
+            ShowFrameIfCurrent(runtime.CurrentAssetName, generation, token);
+            _ = RunSafelyAsync(
+                () => RunTalkingAsync(generation, token),
+                token);
         }
         else
         {
-            _ = RunSafelyAsync(() => RunIdleAsync(includeSettle, token), token);
+            _ = RunSafelyAsync(
+                () => RunIdleAsync(includeSettle, generation, token),
+                token);
         }
     }
 
-    private async Task RunTalkingAsync(CancellationToken token)
+    private async Task RunTalkingAsync(
+        int generation,
+        CancellationToken token)
     {
         var interval = TimeSpan.FromSeconds(
             1 / runtime.Definition.TalkingFramesPerSecond);
         while (true)
         {
             await Task.Delay(interval, token);
+            EnsureCurrent(generation, token);
             runtime.AdvanceTalkingFrame();
-            showFrame(runtime.CurrentAssetName);
+            ShowFrameIfCurrent(runtime.CurrentAssetName, generation, token);
         }
     }
 
     private async Task RunIdleAsync(
         bool includeSettle,
+        int generation,
         CancellationToken token)
     {
         if (includeSettle)
         {
             foreach (var step in runtime.Definition.SettleSteps)
             {
-                token.ThrowIfCancellationRequested();
-                showFrame(step.AssetName);
+                ShowFrameIfCurrent(step.AssetName, generation, token);
                 await Task.Delay(TimeSpan.FromSeconds(step.Duration), token);
             }
         }
 
-        showFrame(runtime.Definition.IdleAssetName);
-        _ = RunSafelyAsync(() => RunIdleSwayAsync(token), token);
-        _ = RunSafelyAsync(() => RunBlinkAsync(token), token);
+        ShowFrameIfCurrent(
+            runtime.Definition.IdleAssetName,
+            generation,
+            token);
+        _ = RunSafelyAsync(
+            () => RunIdleSwayAsync(generation, token),
+            token);
+        _ = RunSafelyAsync(
+            () => RunBlinkAsync(generation, token),
+            token);
         await Task.Delay(
             TimeSpan.FromSeconds(ThoughtCloudPlan.AppearanceDelay),
             token);
+        EnsureCurrent(generation, token);
         if (runtime.Definition.ThoughtCloudEnabled)
         {
             thoughtCloud.ShowAnimated();
         }
     }
 
-    private async Task RunIdleSwayAsync(CancellationToken token)
+    private async Task RunIdleSwayAsync(
+        int generation,
+        CancellationToken token)
     {
         var plan = new IdleAnimationPlan(runtime.Definition.IdleMotion);
         var direction = IdleSwayDirection.Left;
         while (true)
         {
-            token.ThrowIfCancellationRequested();
+            EnsureCurrent(generation, token);
             var step = plan.GetStep(
                 direction,
                 random.NextDouble(),
                 random.NextDouble());
-            AnimateTransform(step);
+            AnimateTransform(step, generation, token);
             await Task.Delay(
                 TimeSpan.FromSeconds(step.Duration + step.HoldDuration),
                 token);
@@ -157,7 +176,9 @@ public sealed class CharacterAnimator : IDisposable
         }
     }
 
-    private async Task RunBlinkAsync(CancellationToken token)
+    private async Task RunBlinkAsync(
+        int generation,
+        CancellationToken token)
     {
         var definition = runtime.Definition;
         if (definition.BlinkSteps.Count == 0 ||
@@ -173,20 +194,24 @@ public sealed class CharacterAnimator : IDisposable
                 (definition.MaximumBlinkDelay.Value -
                     definition.MinimumBlinkDelay.Value) * random.NextDouble();
             await Task.Delay(TimeSpan.FromSeconds(delay), token);
+            EnsureCurrent(generation, token);
 
             foreach (var step in definition.BlinkSteps)
             {
-                token.ThrowIfCancellationRequested();
-                showFrame(step.AssetName);
+                ShowFrameIfCurrent(step.AssetName, generation, token);
                 await Task.Delay(TimeSpan.FromSeconds(step.Duration), token);
             }
 
-            showFrame(definition.IdleAssetName);
+            ShowFrameIfCurrent(definition.IdleAssetName, generation, token);
         }
     }
 
-    private void AnimateTransform(IdleSwayStep step)
+    private void AnimateTransform(
+        IdleSwayStep step,
+        int generation,
+        CancellationToken token)
     {
+        EnsureCurrent(generation, token);
         var duration = TimeSpan.FromSeconds(step.Duration);
         translation.BeginAnimation(
             TranslateTransform.XProperty,
@@ -223,6 +248,7 @@ public sealed class CharacterAnimator : IDisposable
 
     private void CancelCurrentAnimation()
     {
+        animationGeneration++;
         animationCancellation?.Cancel();
         animationCancellation?.Dispose();
         animationCancellation = null;
@@ -231,5 +257,23 @@ public sealed class CharacterAnimator : IDisposable
         rotation.BeginAnimation(RotateTransform.AngleProperty, null);
         translation.X = 0;
         rotation.Angle = 0;
+    }
+
+    private void ShowFrameIfCurrent(
+        string assetName,
+        int generation,
+        CancellationToken token)
+    {
+        EnsureCurrent(generation, token);
+        showFrame(assetName);
+    }
+
+    private void EnsureCurrent(int generation, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (generation != animationGeneration)
+        {
+            throw new OperationCanceledException(token);
+        }
     }
 }

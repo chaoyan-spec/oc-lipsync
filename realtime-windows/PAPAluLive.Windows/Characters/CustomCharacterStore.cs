@@ -11,31 +11,37 @@ public sealed record CustomCharacterImportResult(
 public sealed class CustomCharacterStore
 {
     private readonly string directory;
+    private readonly Action? beforePointerCommit;
 
-    public CustomCharacterStore(string? localAppData = null)
+    public CustomCharacterStore(
+        string? localAppData = null,
+        Action? beforePointerCommit = null)
     {
         var root = localAppData ?? Environment.GetFolderPath(
             Environment.SpecialFolder.LocalApplicationData);
         directory = Path.Combine(root, "PAPAluLive", "CustomCharacter");
+        this.beforePointerCommit = beforePointerCommit;
     }
 
     public CharacterAssets? Load()
     {
-        var idlePath = Path.Combine(directory, "idle.png");
-        var talkingPath = Path.Combine(directory, "talking.png");
-        if (!File.Exists(idlePath) || !File.Exists(talkingPath))
-        {
-            return null;
-        }
-
         try
         {
-            return CreateAssets(
-                LoadBitmap(idlePath),
-                LoadBitmap(talkingPath));
+            var currentPath = Path.Combine(directory, "current.txt");
+            if (File.Exists(currentPath))
+            {
+                var version = File.ReadAllText(currentPath).Trim();
+                if (Guid.TryParseExact(version, "N", out _))
+                {
+                    return LoadPair(Path.Combine(directory, "versions", version));
+                }
+            }
+
+            return LoadPair(directory);
         }
         catch (Exception exception) when (
-            exception is IOException or NotSupportedException)
+            exception is IOException or NotSupportedException or
+                ArgumentException or FormatException)
         {
             return null;
         }
@@ -51,27 +57,33 @@ public sealed class CustomCharacterStore
         var idleBytes = EncodePng(prepared.Idle);
         var talkingBytes = EncodePng(prepared.Talking);
 
-        Directory.CreateDirectory(directory);
-        var pendingId = Guid.NewGuid().ToString("N");
-        var pendingIdle = Path.Combine(directory, $"idle.{pendingId}.tmp");
-        var pendingTalking = Path.Combine(directory, $"talking.{pendingId}.tmp");
+        var version = Guid.NewGuid().ToString("N");
+        var versionsDirectory = Path.Combine(directory, "versions");
+        var pendingDirectory = Path.Combine(versionsDirectory, $".{version}.pending");
+        var versionDirectory = Path.Combine(versionsDirectory, version);
+        var pendingPointer = Path.Combine(directory, $"current.{version}.tmp");
+        Directory.CreateDirectory(versionsDirectory);
         try
         {
-            File.WriteAllBytes(pendingIdle, idleBytes);
-            File.WriteAllBytes(pendingTalking, talkingBytes);
+            Directory.CreateDirectory(pendingDirectory);
+            File.WriteAllBytes(
+                Path.Combine(pendingDirectory, "idle.png"),
+                idleBytes);
+            File.WriteAllBytes(
+                Path.Combine(pendingDirectory, "talking.png"),
+                talkingBytes);
+            Directory.Move(pendingDirectory, versionDirectory);
+            beforePointerCommit?.Invoke();
+            File.WriteAllText(pendingPointer, version);
             File.Move(
-                pendingIdle,
-                Path.Combine(directory, "idle.png"),
-                overwrite: true);
-            File.Move(
-                pendingTalking,
-                Path.Combine(directory, "talking.png"),
+                pendingPointer,
+                Path.Combine(directory, "current.txt"),
                 overwrite: true);
         }
         finally
         {
-            TryDelete(pendingIdle);
-            TryDelete(pendingTalking);
+            TryDeleteFile(pendingPointer);
+            TryDeleteDirectory(pendingDirectory);
         }
 
         return new CustomCharacterImportResult(
@@ -95,6 +107,15 @@ public sealed class CustomCharacterStore
             });
     }
 
+    private static CharacterAssets? LoadPair(string pairDirectory)
+    {
+        var idlePath = Path.Combine(pairDirectory, "idle.png");
+        var talkingPath = Path.Combine(pairDirectory, "talking.png");
+        return File.Exists(idlePath) && File.Exists(talkingPath)
+            ? CreateAssets(LoadBitmap(idlePath), LoadBitmap(talkingPath))
+            : null;
+    }
+
     private static BitmapSource LoadBitmap(string path)
     {
         var bitmap = new BitmapImage();
@@ -115,11 +136,28 @@ public sealed class CustomCharacterStore
         return stream.ToArray();
     }
 
-    private static void TryDelete(string path)
+    private static void TryDeleteFile(string path)
     {
         try
         {
             File.Delete(path);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private static void TryDeleteDirectory(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
+            }
         }
         catch (IOException)
         {
