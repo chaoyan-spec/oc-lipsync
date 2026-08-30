@@ -2,6 +2,7 @@
     x:Class="PAPAluLive.Windows.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:presentation="clr-namespace:PAPAluLive.Windows.Presentation"
     Title="悬浮说话角色"
     Width="288"
     Height="312"
@@ -12,12 +13,16 @@
     ResizeMode="NoResize"
     ShowInTaskbar="True"
     Icon="pack://application:,,,/Resources/AppIcon.png"
-    MouseLeftButtonDown="OnMouseLeftButtonDown">
+    MouseLeftButtonDown="OnMouseLeftButtonDown"
+    SizeChanged="OnSizeChanged">
     <Grid Background="Transparent">
         <Image
             x:Name="CharacterImage"
             Stretch="Uniform"
             SnapsToDevicePixels="True"
             RenderOptions.BitmapScalingMode="HighQuality" />
+        <Canvas IsHitTestVisible="False">
+            <presentation:ThoughtCloudControl x:Name="ThoughtCloud" />
+        </Canvas>
     </Grid>
 </Window>

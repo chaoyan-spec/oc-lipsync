@@ -96,6 +96,19 @@ Check("scale decreases by one step", scale.Factor == 1.9);
 scale.Reset();
 Check("scale resets", scale.Factor == 1.0);
 
+var normalizedSettings = new AppSettingsData(
+    SelectedCharacterId: "not-a-character",
+    Left: double.NaN,
+    Top: double.PositiveInfinity,
+    Scale: 9).Normalize();
+Check(
+    "settings fall back to the default character",
+    normalizedSettings.SelectedCharacterId == CharacterId.CatMeme.ToString());
+Check(
+    "settings discard invalid placement",
+    normalizedSettings.Left is null && normalizedSettings.Top is null);
+Check("settings clamp scale", normalizedSettings.Scale == WindowScale.Maximum);
+
 if (failures.Count > 0)
 {
     Console.Error.WriteLine($"{failures.Count} core tests failed");
