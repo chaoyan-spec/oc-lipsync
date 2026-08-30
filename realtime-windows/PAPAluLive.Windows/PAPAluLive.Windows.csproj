@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../PAPAluLive.Core/PAPAluLive.Core.csproj" />
+    <PackageReference Include="NAudio.Wasapi" Version="3.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="../../realtime-macos/Resources/Characters/**/*.png">
+      <Link>Resources/Characters/%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Resource>
+    <Resource Include="../../public/papalu-talking/frames/*.png">
+      <Link>Resources/Characters/PAPAlu/%(Filename)%(Extension)</Link>
+    </Resource>
+    <Resource Include="../../realtime-macos/Resources/AppIcon-1024.png">
+      <Link>Resources/AppIcon.png</Link>
+    </Resource>
+  </ItemGroup>
+</Project>

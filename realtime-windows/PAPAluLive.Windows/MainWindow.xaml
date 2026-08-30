@@ -1,0 +1,23 @@
+<Window
+    x:Class="PAPAluLive.Windows.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="悬浮说话角色"
+    Width="288"
+    Height="312"
+    AllowsTransparency="True"
+    WindowStyle="None"
+    Background="Transparent"
+    Topmost="True"
+    ResizeMode="NoResize"
+    ShowInTaskbar="True"
+    Icon="pack://application:,,,/Resources/AppIcon.png"
+    MouseLeftButtonDown="OnMouseLeftButtonDown">
+    <Grid Background="Transparent">
+        <Image
+            x:Name="CharacterImage"
+            Stretch="Uniform"
+            SnapsToDevicePixels="True"
+            RenderOptions.BitmapScalingMode="HighQuality" />
+    </Grid>
+</Window>
