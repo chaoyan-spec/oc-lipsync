@@ -31,6 +31,25 @@ for (var index = 0; index < 20; index++)
 }
 Check("release delay closes", gate.State == MouthState.Idle);
 
+var floatSamples = new[] { 0.5f, -0.5f, 0.0f, 0.0f };
+var floatBytes = new byte[floatSamples.Length * sizeof(float)];
+Buffer.BlockCopy(floatSamples, 0, floatBytes, 0, floatBytes.Length);
+Check(
+    "float32 RMS",
+    Math.Abs(PcmRmsCalculator.Calculate(floatBytes, PcmSampleFormat.Float32) -
+        Math.Sqrt(0.125)) < 0.000001);
+
+var pcm16Samples = new short[] { 16384, -16384, 0, 0 };
+var pcm16Bytes = new byte[pcm16Samples.Length * sizeof(short)];
+Buffer.BlockCopy(pcm16Samples, 0, pcm16Bytes, 0, pcm16Bytes.Length);
+Check(
+    "pcm16 RMS",
+    Math.Abs(PcmRmsCalculator.Calculate(pcm16Bytes, PcmSampleFormat.Pcm16) -
+        Math.Sqrt(0.125)) < 0.0001);
+Check(
+    "empty audio RMS",
+    PcmRmsCalculator.Calculate([], PcmSampleFormat.Float32) == 0);
+
 var catalog = CharacterDefinition.BundledCharacters;
 Check(
     "character order",
