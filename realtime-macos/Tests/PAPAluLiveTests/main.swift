@@ -10,6 +10,7 @@ do {
         + characterImagePreparerTests
         + customCharacterStoreTests
         + appPreferencesTests
+        + characterMenuItemFactoryTests
     for (name, test) in tests {
         try test()
         print("PASS: \(name)")

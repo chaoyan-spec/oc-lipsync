@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let preferences = AppPreferences()
     private let customStore = CustomCharacterStore()
     private let imagePreparer = CharacterImagePreparer()
+    private let menuItemFactory = CharacterMenuItemFactory()
     private var didShowError = false
 
     static func main() {
@@ -103,12 +104,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window?.resetScale()
     }
 
-    @objc private func selectCatMeme() {
-        selectCharacter(.catMeme)
-    }
-
-    @objc private func selectPapalu() {
-        selectCharacter(.papalu)
+    @objc private func selectBundledCharacter(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let id = CharacterID(rawValue: rawValue) else { return }
+        selectCharacter(id)
     }
 
     @objc private func selectCustom() {
@@ -130,20 +129,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "Characters",
             isDirectory: true
         )
-        catalog[.catMeme] = try CharacterAssets.load(
-            definition: .catMeme,
-            directory: characters.appendingPathComponent(
-                "CatMeme",
-                isDirectory: true
+        for bundled in CharacterDefinition.bundledCharacters {
+            catalog[bundled.definition.id] = try CharacterAssets.load(
+                definition: bundled.definition,
+                directory: characters.appendingPathComponent(
+                    bundled.resourceDirectoryName,
+                    isDirectory: true
+                )
             )
-        )
-        catalog[.papalu] = try CharacterAssets.load(
-            definition: .papalu,
-            directory: characters.appendingPathComponent(
-                "PAPAlu",
-                isDirectory: true
-            )
-        )
+        }
         if let custom = try? customStore.load() {
             catalog[.custom] = custom
         }
@@ -168,18 +162,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func rebuildCharacterMenu() {
         let menu = NSMenu(title: "选择角色")
-        addCharacterItem(
-            title: "猫 Meme",
-            id: .catMeme,
-            action: #selector(selectCatMeme),
-            to: menu
-        )
-        addCharacterItem(
-            title: "PAPAlu",
-            id: .papalu,
-            action: #selector(selectPapalu),
-            to: menu
-        )
+        for bundled in CharacterDefinition.bundledCharacters {
+            guard let assets = catalog[bundled.definition.id] else { continue }
+            let item = menuItemFactory.makeItem(
+                for: assets,
+                selectedCharacterID: selectedCharacterID
+            )
+            item.action = #selector(selectBundledCharacter(_:))
+            item.target = self
+            menu.addItem(item)
+        }
         addCharacterItem(
             title: "自定义角色",
             id: .custom,
