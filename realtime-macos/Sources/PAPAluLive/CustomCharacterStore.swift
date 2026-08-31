@@ -47,6 +47,12 @@ final class CustomCharacterStore {
         return assets
     }
 
+    func delete() throws {
+        let manager = FileManager.default
+        guard manager.fileExists(atPath: rootDirectory.path) else { return }
+        try manager.removeItem(at: rootDirectory)
+    }
+
     private static func defaultRootDirectory() -> URL {
         let applicationSupport = FileManager.default.urls(
             for: .applicationSupportDirectory,

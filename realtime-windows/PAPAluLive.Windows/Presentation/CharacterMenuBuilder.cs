@@ -8,10 +8,13 @@ namespace PAPAluLive.Windows.Presentation;
 
 public sealed class CharacterMenuBuilder
 {
+    private const double ThumbnailSize = 32;
+
     private readonly IReadOnlyDictionary<CharacterId, CharacterAssets> catalog;
     private readonly Func<CharacterId> selectedCharacter;
     private readonly List<MenuItem> characterItems = [];
     private readonly MenuItem customItem;
+    private readonly MenuItem deleteCustomItem;
 
     public ContextMenu Menu { get; } = new();
 
@@ -21,6 +24,7 @@ public sealed class CharacterMenuBuilder
         Action<CharacterId> selectBuiltIn,
         Action selectCustom,
         Action configureCustom,
+        Action deleteCustom,
         Action increaseScale,
         Action decreaseScale,
         Action resetScale,
@@ -48,6 +52,9 @@ public sealed class CharacterMenuBuilder
         characterItems.Add(customItem);
         Menu.Items.Add(customItem);
         Menu.Items.Add(CreateActionItem("设置自定义角色…", configureCustom));
+        deleteCustomItem = CreateActionItem("删除自定义角色…", deleteCustom);
+        deleteCustomItem.IsEnabled = false;
+        Menu.Items.Add(deleteCustomItem);
         Menu.Items.Add(new Separator());
         Menu.Items.Add(CreateActionItem("放大角色", increaseScale));
         Menu.Items.Add(CreateActionItem("缩小角色", decreaseScale));
@@ -61,15 +68,10 @@ public sealed class CharacterMenuBuilder
         ImageSource? thumbnail = null)
     {
         customItem.IsEnabled = available;
-        customItem.Icon = thumbnail is null
-            ? null
-            : new Image
-            {
-                Source = thumbnail,
-                Width = 28,
-                Height = 28,
-                Stretch = Stretch.Uniform,
-            };
+        deleteCustomItem.IsEnabled = available;
+        customItem.Header = thumbnail is null
+            ? "自定义角色"
+            : CreateCharacterHeader("自定义角色", thumbnail);
         RefreshChecks();
     }
 
@@ -86,22 +88,44 @@ public sealed class CharacterMenuBuilder
         CharacterDefinition definition,
         Action<CharacterId> selectBuiltIn)
     {
-        var thumbnail = new Image
-        {
-            Source = catalog[definition.Id].Images[definition.IdleAssetName],
-            Width = 28,
-            Height = 28,
-            Stretch = Stretch.Uniform,
-        };
         var item = new MenuItem
         {
-            Header = definition.Name,
-            Icon = thumbnail,
+            Header = CreateCharacterHeader(
+                definition.Name,
+                catalog[definition.Id].Images[definition.IdleAssetName]),
             IsCheckable = true,
             Tag = definition.Id,
         };
         item.Click += (_, _) => selectBuiltIn(definition.Id);
         return item;
+    }
+
+    private static FrameworkElement CreateCharacterHeader(
+        string name,
+        ImageSource thumbnail)
+    {
+        var preview = new Image
+        {
+            Source = thumbnail,
+            Width = ThumbnailSize,
+            Height = ThumbnailSize,
+            Stretch = Stretch.Uniform,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var label = new TextBlock
+        {
+            Text = name,
+            Margin = new Thickness(8, 0, 4, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var header = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+        };
+        header.Children.Add(preview);
+        header.Children.Add(label);
+        return header;
     }
 
     private static MenuItem CreateActionItem(string header, Action action)

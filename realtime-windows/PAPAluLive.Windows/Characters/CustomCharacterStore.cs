@@ -93,6 +93,14 @@ public sealed class CustomCharacterStore
                 : "图片没有透明背景，录屏时会保留原背景。");
     }
 
+    public void Delete()
+    {
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private static CharacterAssets CreateAssets(
         BitmapSource idle,
         BitmapSource talking)

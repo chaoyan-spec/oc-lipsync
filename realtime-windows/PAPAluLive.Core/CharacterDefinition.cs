@@ -112,14 +112,22 @@ public sealed record CharacterDefinition(
         Name: name,
         ResourceDirectoryName: "CustomCharacter",
         IdleAssetName: "idle",
-        TalkingAssetNames: ["talking"],
-        TalkingFramesPerSecond: 1,
+        TalkingAssetNames:
+        [
+            "talking",
+            "idle",
+            "talking",
+            "idle",
+            "talking",
+            "talking",
+        ],
+        TalkingFramesPerSecond: 8,
         BlinkSteps: [],
         SettleSteps: [],
         MinimumBlinkDelay: null,
         MaximumBlinkDelay: null,
         IdleMotion: IdleMotionConfiguration.Gentle,
-        ThoughtCloudEnabled: false,
+        ThoughtCloudEnabled: true,
         DefaultSize: new CharacterSize(288, 312));
 
     public IReadOnlySet<string> RequiredAssetNames => new HashSet<string>(

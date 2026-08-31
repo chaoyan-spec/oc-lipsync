@@ -14,7 +14,7 @@ public sealed class ThoughtCloudPlan
     public const double InactiveDotAlpha = 0.35;
     public const double ActiveDotAlpha = 1.0;
 
-    private static readonly ThoughtCloudFrame NormalizedFrame = new(
+    private static readonly ThoughtCloudFrame BottomOriginNormalizedFrame = new(
         X: 0.525,
         Y: 0.725,
         Width: 0.45,
@@ -27,9 +27,14 @@ public sealed class ThoughtCloudPlan
         .Select(index => index == activeIndex ? ActiveDotAlpha : InactiveDotAlpha)
         .ToArray();
 
-    public ThoughtCloudFrame Frame(double windowWidth, double windowHeight) => new(
-        X: NormalizedFrame.X * windowWidth,
-        Y: NormalizedFrame.Y * windowHeight,
-        Width: NormalizedFrame.Width * windowWidth,
-        Height: NormalizedFrame.Height * windowHeight);
+    public ThoughtCloudFrame Frame(double windowWidth, double windowHeight)
+    {
+        var normalized = BottomOriginNormalizedFrame;
+        var top = 1 - normalized.Y - normalized.Height;
+        return new ThoughtCloudFrame(
+            X: normalized.X * windowWidth,
+            Y: top * windowHeight,
+            Width: normalized.Width * windowWidth,
+            Height: normalized.Height * windowHeight);
+    }
 }

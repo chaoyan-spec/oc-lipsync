@@ -60,6 +60,11 @@ try
         PixelRed(afterFailure.Images["idle"], 50, 139) == 255 &&
         PixelBlue(afterFailure.Images["talking"], 50, 139) == 255);
 
+    store.Delete();
+    Check("custom character store deletes saved assets", store.Load() is null);
+    store.Delete();
+    Check("repeated custom character delete is safe", store.Load() is null);
+
     var settingsStore = new AppSettingsStore(temporaryRoot);
     settingsStore.Save(new PAPAluLive.Core.AppSettingsData(
         "Papalu",

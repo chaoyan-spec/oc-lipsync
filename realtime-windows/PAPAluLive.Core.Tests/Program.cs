@@ -71,6 +71,24 @@ Check("talking advances to frame 1", runtime.CurrentAssetName == "1");
 runtime.SetCharacter(CharacterDefinition.HuhCat, CharacterDisplayState.Talking);
 Check("character change uses current state", runtime.CurrentAssetName == "talking");
 
+var customDefinition = CharacterDefinition.Custom();
+Check(
+    "custom character uses natural two-frame talking cadence",
+    customDefinition.TalkingAssetNames.SequenceEqual(
+        new[] { "talking", "idle", "talking", "idle", "talking", "talking" }) &&
+    customDefinition.TalkingFramesPerSecond == 8);
+Check(
+    "custom character uses accepted idle effects",
+    customDefinition.IdleMotion == IdleMotionConfiguration.Gentle &&
+    customDefinition.ThoughtCloudEnabled);
+var customRuntime = new CharacterRuntime(customDefinition);
+customRuntime.SetState(CharacterDisplayState.Talking);
+Check("custom talking starts open", customRuntime.CurrentAssetName == "talking");
+customRuntime.AdvanceTalkingFrame();
+Check("custom talking closes between syllables", customRuntime.CurrentAssetName == "idle");
+customRuntime.AdvanceTalkingFrame();
+Check("custom talking reopens", customRuntime.CurrentAssetName == "talking");
+
 var sway = new IdleAnimationPlan().GetStep(
     IdleSwayDirection.Left,
     durationRandomUnit: 0.5,
@@ -87,7 +105,13 @@ Check(
 var cloudFrame = cloud.Frame(200, 100);
 Check(
     "cloud geometry scales",
-    cloudFrame == new ThoughtCloudFrame(105, 72.5, 90, 27));
+    Math.Abs(cloudFrame.X - 105) < 0.0001 &&
+    Math.Abs(cloudFrame.Y - 0.5) < 0.0001 &&
+    Math.Abs(cloudFrame.Width - 90) < 0.0001 &&
+    Math.Abs(cloudFrame.Height - 27) < 0.0001);
+Check(
+    "cloud stays above the character in top-left coordinates",
+    cloudFrame.Y + cloudFrame.Height < 50);
 
 var scale = new WindowScale(9);
 Check("scale clamps maximum", scale.Factor == 2.0);

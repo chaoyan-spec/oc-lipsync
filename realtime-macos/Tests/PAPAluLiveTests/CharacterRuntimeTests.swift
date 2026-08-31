@@ -4,12 +4,14 @@ import AppKit
 @testable import PAPAluLive
 #endif
 
-func testRuntimeHandlesSingleTalkingFrame() throws {
+func testRuntimeFlapsTwoFrameCustomCharacterWhileTalking() throws {
     var runtime = CharacterRuntime(definition: .custom(name: "两图角色"))
     runtime.setState(.talking)
-    try expectEqual(runtime.currentAssetName, "talking", "single frame talking")
+    try expectEqual(runtime.currentAssetName, "talking", "speech opens immediately")
     runtime.advanceTalkingFrame()
-    try expectEqual(runtime.currentAssetName, "talking", "single frame loops")
+    try expectEqual(runtime.currentAssetName, "idle", "speech closes between syllables")
+    runtime.advanceTalkingFrame()
+    try expectEqual(runtime.currentAssetName, "talking", "speech opens again")
 }
 
 func testRuntimeHandlesMultiFrameTalkingSequence() throws {
@@ -41,7 +43,10 @@ func testCharacterAssetsRejectMissingRequiredImage() throws {
 }
 
 let characterRuntimeTests: [(String, () throws -> Void)] = [
-    ("runtime handles one talking frame", testRuntimeHandlesSingleTalkingFrame),
+    (
+        "runtime flaps two-frame custom character while talking",
+        testRuntimeFlapsTwoFrameCustomCharacterWhileTalking
+    ),
     ("runtime handles multi-frame talking", testRuntimeHandlesMultiFrameTalkingSequence),
     (
         "character changes use current microphone state",

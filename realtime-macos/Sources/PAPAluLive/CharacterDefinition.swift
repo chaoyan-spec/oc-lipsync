@@ -91,13 +91,15 @@ struct CharacterDefinition: Equatable {
             id: .custom,
             name: name,
             idleAssetName: "idle",
-            talkingAssetNames: ["talking"],
-            talkingFramesPerSecond: 1,
+            talkingAssetNames: [
+                "talking", "idle", "talking", "idle", "talking", "talking",
+            ],
+            talkingFramesPerSecond: 8,
             blinkSteps: [],
             settleSteps: [],
             blinkDelayRange: nil,
             idleMotion: .gentle,
-            thoughtCloudEnabled: false,
+            thoughtCloudEnabled: true,
             defaultSize: NSSize(width: 288, height: 312)
         )
     }

@@ -36,10 +36,16 @@ func testPapaluOwnsItsLegacySequencesInsteadOfRuntime() throws {
 
 func testTwoFrameCustomCharacterHasNoOptionalAnimationRequirements() throws {
     let custom = CharacterDefinition.custom(name: "我的角色")
-    try expectEqual(custom.talkingAssetNames, ["talking"], "custom talking")
+    try expectEqual(
+        custom.talkingAssetNames,
+        ["talking", "idle", "talking", "idle", "talking", "talking"],
+        "custom talking cadence"
+    )
+    try expectEqual(custom.talkingFramesPerSecond, 8, "custom talking fps")
+    try expectEqual(custom.idleMotion, .gentle, "custom idle motion")
     try expectEqual(custom.blinkSteps.isEmpty, true, "custom blink")
     try expectEqual(custom.settleSteps.isEmpty, true, "custom settle")
-    try expectEqual(custom.thoughtCloudEnabled, false, "custom cloud")
+    try expectEqual(custom.thoughtCloudEnabled, true, "custom cloud")
 }
 
 func testFirstCatPackIsAnOrderedTwoFrameBundledCatalog() throws {

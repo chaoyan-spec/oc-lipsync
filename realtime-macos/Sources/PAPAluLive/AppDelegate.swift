@@ -121,6 +121,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsController?.window?.makeKeyAndOrderFront(nil)
     }
 
+    @objc private func deleteCustomCharacter() {
+        guard catalog[.custom] != nil else { return }
+
+        let alert = NSAlert()
+        alert.messageText = "删除自定义角色？"
+        alert.informativeText = "只会删除 App 保存的闭嘴、张嘴副本，不会删除你最初选择的图片。"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "删除")
+        alert.addButton(withTitle: "取消")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        do {
+            try customStore.delete()
+            catalog.removeValue(forKey: .custom)
+            if selectedCharacterID == .custom {
+                selectCharacter(.catMeme)
+            } else {
+                rebuildCharacterMenu()
+            }
+        } catch {
+            showError("无法删除自定义角色：\(error.localizedDescription)")
+        }
+    }
+
     private func loadCharacterCatalog() throws {
         guard let resourceURL = Bundle.main.resourceURL else {
             throw CharacterAssetError.unreadableImage
@@ -185,6 +209,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: ""
         )
         settingsItem.target = self
+        let deleteItem = menu.addItem(
+            withTitle: "删除自定义角色…",
+            action: #selector(deleteCustomCharacter),
+            keyEquivalent: ""
+        )
+        deleteItem.target = self
+        deleteItem.isEnabled = catalog[.custom] != nil
         window?.setContextMenu(menu)
     }
 

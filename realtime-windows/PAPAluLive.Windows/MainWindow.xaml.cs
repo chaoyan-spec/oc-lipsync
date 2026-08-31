@@ -54,6 +54,7 @@ public partial class MainWindow : Window
             SelectBuiltInCharacter,
             SelectCustomCharacter,
             ConfigureCustomCharacter,
+            DeleteCustomCharacter,
             IncreaseScale,
             DecreaseScale,
             ResetScale,
@@ -206,6 +207,47 @@ public partial class MainWindow : Window
                 "无法导入这组 PNG。请确认两张图片都能正常打开。\n\n" +
                 exception.Message,
                 "自定义角色导入失败",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+    }
+
+    private void DeleteCustomCharacter()
+    {
+        if (customAssets is null)
+        {
+            return;
+        }
+
+        var result = MessageBox.Show(
+            this,
+            "只会删除 App 保存的闭嘴、张嘴副本，不会删除你最初选择的图片。",
+            "删除自定义角色？",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+        if (result != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            customCharacterStore.Delete();
+            customAssets = null;
+            if (selectedCharacterId == CharacterId.Custom)
+            {
+                SelectBuiltInCharacter(CharacterId.CatMeme);
+            }
+            menuBuilder.SetCustomAvailable(available: false);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(
+                this,
+                "无法删除 App 保存的自定义角色副本。\n\n" + exception.Message,
+                "删除自定义角色失败",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
         }
