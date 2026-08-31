@@ -17,9 +17,10 @@ The page remains stable while release tags change.
 Every latest release must contain these stable asset names:
 
 - `PAPAluLive-win-x64.zip`
-- `PAPAluLive-macOS.zip`
+- `PAPAluLive-macOS-Apple-Silicon.zip`
+- `PAPAluLive-macOS-Intel.zip`
 
-The current accepted Windows package remains unchanged. The latest accepted macOS App is packaged with `ditto` so the `.app` bundle structure, executable permissions, and macOS resource metadata are preserved.
+The current accepted Windows package remains unchanged. Both macOS Apps are packaged with `ditto` so the `.app` bundle structure, executable permissions, and macOS resource metadata are preserved. The release page tells users which chip each package supports.
 
 ## Release Presentation
 
@@ -27,8 +28,8 @@ Rename the current release title from Windows-only wording to a cross-platform t
 
 ## Verification
 
-- Verify the macOS ZIP contains one complete `悬浮说话角色.app` bundle.
-- Verify both assets are present on the latest release with the exact stable names.
+- Verify each macOS ZIP contains one complete `悬浮说话角色.app` bundle and the expected single architecture.
+- Verify all three assets are present on the latest release with the exact stable names.
 - Verify the public Latest Release page resolves without authentication.
 - Keep platform-specific direct links available, while presenting only the release page as the primary entry.
 

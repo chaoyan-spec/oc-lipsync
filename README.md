@@ -4,6 +4,8 @@
 
 ## 悬浮说话角色（macOS V1）
 
+公开下载统一入口：[GitHub 最新版本](https://github.com/chaoyan-spec/oc-lipsync/releases/latest)。Apple 芯片（M1/M2/M3/M4 等）下载 `PAPAluLive-macOS-Apple-Silicon.zip`；Intel 芯片下载 `PAPAluLive-macOS-Intel.zip`。
+
 实时版用于录制屏幕教程：打开 App 后，麦克风音量只在内存中驱动角色开口。明显讲话会快速进入 talking，持续安静约 600ms 后进入待机；待机时角色会轻微左右摆动。应用不会保存音频、上传数据或访问网络，也不使用摄像头。
 
 猫 Meme 是默认内置角色。右键点击悬浮角色，可以通过名称和小头像切换“猫 Meme”“Huh 猫”“Happy 猫”“抱头尖叫猫”或“PAPAlu”，也可以选择“设置自定义角色…”导入自己的 OC，或删除 App 保存的自定义角色副本。自定义角色第一版只需要两张 PNG：一张闭嘴、一张张嘴。两张图尺寸不同时会自动放入同一个底部居中的画布，不会拉伸或裁切；如果图片没有透明背景，原背景会照常显示，不会自动抠图。
@@ -17,11 +19,11 @@ PAPAlu 继续使用原来经过验收的多帧 talking、收口、眨眼和思�
 电脑需要 Apple Command Line Tools。进入本项目后运行：
 
 ```bash
-./realtime-macos/build-app.sh
-open "outputs/悬浮说话角色.app"
+./realtime-macos/build-app.sh arm64
+./realtime-macos/build-app.sh x86_64
 ```
 
-生成位置是 `outputs/悬浮说话角色.app`。新的 bundle identifier 会在首次启动时重新请求一次麦克风权限；如果拒绝，请到“系统设置 → 隐私与安全性 → 麦克风”重新打开。直接拖动角色即可调整位置；使用 `Command +` 放大、`Command -` 缩小、`Command 0` 恢复默认大小，按 `Command-Q` 退出。角色选择、窗口位置和缩放会自动保存。
+Apple Silicon App 生成在 `outputs/macos/Apple-Silicon/悬浮说话角色.app`，Intel App 生成在 `outputs/macos/Intel/悬浮说话角色.app`。不传参数时默认构建 Apple Silicon。新的 bundle identifier 会在首次启动时重新请求一次麦克风权限；如果拒绝，请到“系统设置 → 隐私与安全性 → 麦克风”重新打开。直接拖动角色即可调整位置；使用 `Command +` 放大、`Command -` 缩小、`Command 0` 恢复默认大小，按 `Command-Q` 退出。角色选择、窗口位置和缩放会自动保存。
 
 如果把 App 拖入“应用程序”文件夹，可以在 Spotlight 或启动台搜索“悬浮说话角色”启动。关闭时可右键 Dock 图标选择“退出”，或先聚焦 App 再按 `Command-Q`。
 

@@ -8,7 +8,7 @@ REPO_ROOT="$(cd "$REALTIME_DIR/.." && pwd)"
 MASTER_ICON="$REALTIME_DIR/Resources/AppIcon-1024.png"
 ICNS_ICON="$REALTIME_DIR/Resources/AppIcon.icns"
 ICON_GENERATOR="$REALTIME_DIR/generate-app-icon.swift"
-APP_BUNDLE="$REPO_ROOT/outputs/悬浮说话角色.app"
+APP_BUNDLE="${PAPALU_TEST_APP_BUNDLE:-$REPO_ROOT/outputs/macos/Apple-Silicon/悬浮说话角色.app}"
 APP_ICON="$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/papalu-icon-test.XXXXXX")"
 trap 'rm -rf "$TEMP_DIR"' EXIT
